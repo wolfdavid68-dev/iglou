@@ -36,7 +36,7 @@ export default function Connexion() {
           <Text className="text-5xl">🧊</Text>
         </View>
         <Texte poids="gras" className="text-3xl">
-          Congélateur
+          Iglou
         </Texte>
         <Texte ton="secondaire" className="text-center text-base">
           Le frigo et le congélateur de toute la maison, toujours à jour.

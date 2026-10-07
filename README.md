@@ -1,4 +1,4 @@
-# Congélateur (nom provisoire)
+# Iglou
 
 Inventaire partagé du frigo et du congélateur, par « maisons » : chaque membre voit en direct ce qu'il reste, ce qui manque, et la liste de courses qui en découle.
 
