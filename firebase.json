@@ -11,6 +11,9 @@
       "public": "dist",
       "cleanUrls": true,
       "ignore": ["firebase.json", "**/.*"],
+      "headers": [
+        { "source": "**", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] }
+      ],
       "rewrites": [
         { "source": "/aliment/**", "destination": "/aliment/[id].html" },
         { "source": "/appareil/**", "destination": "/appareil/[id].html" },
