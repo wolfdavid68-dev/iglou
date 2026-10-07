@@ -1,6 +1,7 @@
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { emailValide, EcranFormulaire } from '@/composants/formulaire';
 import { Bouton, Champ, Texte } from '@/composants/ui';
@@ -32,9 +33,12 @@ export default function Connexion() {
   return (
     <EcranFormulaire className="flex-1 justify-center">
       <View className="items-center gap-2 pb-4">
-        <View className="size-20 items-center justify-center rounded-3xl bg-congelateur-pale">
-          <Text className="text-5xl">🧊</Text>
-        </View>
+        <Image
+          source={require('@/assets/images/splash-icon.png')}
+          style={{ width: 132, height: 92 }}
+          contentFit="contain"
+          accessibilityLabel="Logo Iglou"
+        />
         <Texte poids="gras" className="text-3xl">
           Iglou
         </Texte>
