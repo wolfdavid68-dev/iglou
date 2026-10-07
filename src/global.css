@@ -1,9 +1,75 @@
-:root {
-  --font-display:
-    Spline Sans, Inter, ui-sans-serif, system-ui, sans-serif, Apple Color Emoji, Segoe UI Emoji,
-    Segoe UI Symbol, Noto Color Emoji;
-  --font-mono:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace;
-  --font-rounded: 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif;
-  --font-serif: Georgia, 'Times New Roman', serif;
+@import 'tailwindcss';
+@import 'uniwind';
+
+/*
+ * Palette de l'application. Les mêmes valeurs existent côté JS dans
+ * src/theme/index.ts (icônes, barre d'onglets, dégradés) : garder les deux alignées.
+ */
+@layer theme {
+  :root {
+    @variant light {
+      --color-fond: #f7f9fb;
+      --color-carte: #ffffff;
+      --color-carte-enfoncee: #f1f5f9;
+      --color-bordure: #e2e8f0;
+      --color-encre: #0f172a;
+      --color-encre-2: #64748b;
+      --color-encre-3: #94a3b8;
+      --color-bac: #f8fafc;
+      --color-frigo-pale: #ccfbf1;
+      --color-congelateur-pale: #dbeafe;
+      --color-courses-pale: #ffedd5;
+      --color-rouge-pale: #fee2e2;
+      --color-orange-pale: #fef3c7;
+      --color-vert-pale: #dcfce7;
+      --color-voile: rgba(15, 23, 42, 0.4);
+      /* Intérieur des appareils : vitre des tiroirs, façade, poignées. */
+      --color-vitre: rgba(255, 255, 255, 0.62);
+      --color-vitre-bord: rgba(255, 255, 255, 0.95);
+      --color-facade: #ffffff;
+      --color-poignee: #cbd5e1;
+    }
+
+    @variant dark {
+      --color-fond: #0b1220;
+      --color-carte: #151e2e;
+      --color-carte-enfoncee: #1e293b;
+      --color-bordure: #263247;
+      --color-encre: #f1f5f9;
+      --color-encre-2: #94a3b8;
+      --color-encre-3: #64748b;
+      --color-bac: #111a29;
+      --color-frigo-pale: #0f3b37;
+      --color-congelateur-pale: #172a4a;
+      --color-courses-pale: #3d2414;
+      --color-rouge-pale: #3f1d1d;
+      --color-orange-pale: #3a2e12;
+      --color-vert-pale: #14331f;
+      --color-voile: rgba(0, 0, 0, 0.6);
+      --color-vitre: rgba(255, 255, 255, 0.05);
+      --color-vitre-bord: rgba(255, 255, 255, 0.12);
+      --color-facade: #1b2638;
+      --color-poignee: #475569;
+    }
+  }
+}
+
+@theme {
+  --color-frigo: #14b8a6;
+  --color-congelateur: #3b82f6;
+  --color-courses: #f97316;
+  --color-vert: #22c55e;
+  --color-orange: #f59e0b;
+  --color-rouge: #ef4444;
+  /* Post-it collé sur la porte : même jaune en clair et en sombre. */
+  --color-postit: #fde68a;
+  --color-postit-encre: #713f12;
+
+  /* Sur Android, chaque graisse est une police distincte. */
+  --font-inter: 'Inter_400Regular';
+  --font-inter-moyen: 'Inter_500Medium';
+  --font-inter-demi: 'Inter_600SemiBold';
+  --font-inter-gras: 'Inter_700Bold';
+  /* Écriture manuscrite des post-it. */
+  --font-manuscrit: 'Caveat_700Bold';
 }

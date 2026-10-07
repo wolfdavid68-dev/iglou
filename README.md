@@ -1,56 +1,74 @@
-# Welcome to your Expo app 👋
+# Congélateur (nom provisoire)
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Inventaire partagé du frigo et du congélateur, par « maisons » : chaque membre voit en direct ce qu'il reste, ce qui manque, et la liste de courses qui en découle.
 
-## Get started
+- **Stack** : Expo SDK 57 · React Native 0.86 · Expo Router · Uniwind (Tailwind 4) · Firebase (Auth + Firestore, cache hors ligne).
+- **Cahier des charges** : [`docs/cahier-des-charges.md`](docs/cahier-des-charges.md).
+- **Sécurité** : l'app ne contient que la configuration publique Firebase. Aucun identifiant admin / compte de service. Toutes les autorisations sont dans [`firestore.rules`](firestore.rules).
 
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Démarrer
 
 ```bash
-npm run reset-project
+npm install
+npx expo start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+- **Aperçu web** (le plus rapide) : touche `w`, puis http://localhost:8081.
+  Pour entrer directement dans l'app sans passer par la connexion, copier `.env.example` en `.env.local` et y mettre un compte **de test**.
+- **Téléphone Android** : l'app utilise des modules natifs (React Native Firebase), elle ne tourne donc pas dans Expo Go. Il faut un *development build* :
 
-### Other setup steps
+  ```bash
+  npx eas-cli@latest build -p android --profile development
+  ```
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+  Installer l'APK obtenu, puis `npx expo start` et scanner le QR code.
 
-## Learn more
+## Vérifications
 
-To learn more about developing your project with Expo, look at the following resources:
+```bash
+npx tsc --noEmit        # typage
+npx expo lint           # lint
+npm test                # logique métier (Jest)
+npm run test:regles     # règles Firestore sur l'émulateur (Java 21 requis)
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Builds
 
-## Join the community
+| Profil | Résultat | Commande |
+| --- | --- | --- |
+| `development` | APK avec dev client | `npx eas-cli@latest build -p android --profile development` |
+| `preview` | APK installable directement | `npx eas-cli@latest build -p android --profile preview` |
+| `production` | AAB pour le Play Store | `npx eas-cli@latest build -p android --profile production` |
 
-Join our community of developers creating universal apps.
+## À configurer dans Firebase (une fois)
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+1. **Authentication** → Méthodes de connexion → activer **E-mail/Mot de passe**.
+2. **Firestore** : créer la base (région `eur3`), puis déployer règles et index :
+
+   ```bash
+   npx firebase-tools deploy --only firestore
+   ```
+
+3. **Android** : le fichier `google-services.json` doit correspondre au paquet `com.wolfdavid.congelateur`.
+   Le nom de paquet est **provisoire** : à changer dans `app.json` *et* dans Firebase avant la première publication (il ne pourra plus changer ensuite sur le Play Store).
+4. **Empreintes SHA** : après le premier build EAS, ajouter les SHA-1/SHA-256 (`npx eas-cli@latest credentials`) dans les paramètres du projet Firebase.
+
+## Organisation du code
+
+```
+src/
+  app/          routes Expo Router (un fichier = un écran)
+    (auth)/       connexion, inscription, mot de passe oublié
+    (maisons)/    choisir, créer, rejoindre une maison
+    (app)/        onglets Maison / Courses / Recherche / Réglages, fiches appareil et aliment
+  composants/   composants d'interface réutilisables
+  domaine/      logique métier pure, testée (quantités, courses, import/export…)
+  services/     Firebase, session, maisons, inventaire, dialogues, fichiers
+tests/regles/  tests des règles Firestore (émulateur)
+```
+
+## À tester à la main sur téléphone
+
+- Glisser-déposer d'une carte entre tiroirs et vers la corbeille (vibrations, défilement automatique).
+- Feuille de partage Android (code d'invitation, liste de courses, export JSON).
+- Mode hors ligne : couper le réseau, modifier, puis le rétablir.

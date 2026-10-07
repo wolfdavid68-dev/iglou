@@ -41,3 +41,12 @@ example
 # generated native folders
 /ios
 /android
+
+# Firebase
+.firebase/
+firebase-debug*.log
+firestore-debug*.log
+
+# Claude Code (réglages personnels)
+.claude/settings.local.json
+.claude/worktrees/
