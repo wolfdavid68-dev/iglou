@@ -6,7 +6,7 @@ export const LIEN_CONFIDENTIALITE = `${SITE}/confidentialite`;
 export const LIEN_SUPPRESSION_COMPTE = `${SITE}/suppression-compte`;
 
 /** Adresse de contact pour les données personnelles. */
-export const CONTACT = 'ADRESSE_CONTACT';
+export const CONTACT = 'admin@iglou.biz';
 
 export function ouvrirLien(url: string) {
   openBrowserAsync(url).catch(() => {});

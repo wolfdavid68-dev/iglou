@@ -1,22 +1,22 @@
 {
   "expo": {
-    "name": "Congélateur",
+    "name": "Iglou",
     "slug": "congelateur",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "congelateur",
+    "scheme": "iglou",
     "userInterfaceStyle": "automatic",
     "ios": {},
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#14B8A6",
+        "backgroundColor": "#3B8DEB",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.wolfdavid.congelateur",
+      "package": "biz.iglou",
       "googleServicesFile": "./google-services.json"
     },
     "web": {
@@ -28,9 +28,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#F7F9FB",
+          "backgroundColor": "#1656D6",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 120,
+          "imageWidth": 200,
           "dark": {
             "backgroundColor": "#0F172A"
           }
