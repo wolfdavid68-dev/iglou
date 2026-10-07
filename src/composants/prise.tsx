@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Modal, Pressable, Text, TextInput, View } from 'react-native';
 
 import { emojiPourNom } from '@/domaine/emoji';
@@ -27,6 +27,13 @@ function Fenetre({ d }: { d: DemandePrise }) {
   const a = d.aliment;
   const pas = pasPourUnite(a.unite);
   const [texte, setTexte] = useState(nombre(Math.min(pas, a.quantite)));
+  // Sur téléphone, le navigateur envoie un clic juste après le toucher qui a ouvert la fenêtre :
+  // sans ce délai, il tomberait sur un bouton (« J'ai tout pris »).
+  const [protege, setProtege] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setProtege(false), 450);
+    return () => clearTimeout(t);
+  }, []);
   const prise = lireQuantite(texte);
   const trop = prise != null && prise > a.quantite;
   const valide = prise != null && !trop;
@@ -137,6 +144,7 @@ function Fenetre({ d }: { d: DemandePrise }) {
           </View>
         </Pressable>
       </Pressable>
+      {protege ? <View className="absolute inset-0" /> : null}
     </Modal>
   );
 }
