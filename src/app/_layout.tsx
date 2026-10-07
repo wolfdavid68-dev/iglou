@@ -11,6 +11,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BandeauBas } from '@/composants/bandeaux';
 import { HoteDialogue } from '@/composants/dialogue';
 import { HoteFeuille } from '@/composants/feuille';
+import { HotePrise } from '@/composants/prise';
 import { useAccesDirectDev } from '@/services/acces-dev';
 import { restaurerApparence } from '@/services/apparence';
 import { MaisonsProvider, useMaisons } from '@/services/maisons';
@@ -37,6 +38,7 @@ export default function Racine() {
             {(policesChargees || erreurPolices) && <Navigation />}
             <BandeauBas decalage={64} />
             <HoteFeuille />
+            <HotePrise />
             <HoteDialogue />
             <StatusBar style={c.sombre ? 'light' : 'dark'} />
           </MaisonsProvider>

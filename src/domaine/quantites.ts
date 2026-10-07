@@ -40,6 +40,12 @@ export function pasPourUnite(unite: Unite): number {
   }
 }
 
+/** Lit une quantité tapée (« 2 », « 1,5 ») ; `null` si ce n'est pas un nombre positif. */
+export function lireQuantite(texte: string): number | null {
+  const n = Number(texte.trim().replace(',', '.'));
+  return texte.trim() && Number.isFinite(n) && n > 0 ? arrondir(n) : null;
+}
+
 export function incrementer(stock: Stock, pas = 1): Stock {
   return fixerQuantite(stock, stock.quantite + pas);
 }

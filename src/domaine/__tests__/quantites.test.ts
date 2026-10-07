@@ -3,6 +3,7 @@ import {
   decrementer,
   fixerQuantite,
   incrementer,
+  lireQuantite,
   manque,
   modifierMaximum,
   niveauJauge,
@@ -59,5 +60,21 @@ describe('règle du maximum (stock plein)', () => {
     expect(niveauJauge({ quantite: 2, quantiteMax: 6 })).toBe('entame');
     expect(niveauJauge({ quantite: 0, quantiteMax: 6 })).toBe('epuise');
     expect(remplissage({ quantite: 3, quantiteMax: 6 })).toBe(0.5);
+  });
+});
+
+describe('lireQuantite (« Combien en as-tu pris ? »)', () => {
+  test('accepte les entiers et la virgule décimale', () => {
+    expect(lireQuantite('2')).toBe(2);
+    expect(lireQuantite(' 1,5 ')).toBe(1.5);
+    expect(lireQuantite('0.25')).toBe(0.25);
+  });
+
+  test('refuse le vide, zéro, le négatif et le texte', () => {
+    expect(lireQuantite('')).toBeNull();
+    expect(lireQuantite('  ')).toBeNull();
+    expect(lireQuantite('0')).toBeNull();
+    expect(lireQuantite('-1')).toBeNull();
+    expect(lireQuantite('deux')).toBeNull();
   });
 });

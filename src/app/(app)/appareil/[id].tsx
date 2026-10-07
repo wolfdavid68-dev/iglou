@@ -14,7 +14,7 @@ import { Bouton, BoutonIcone, Carte, Champ, Chargement, EnTete, EtatVide, Texte 
 import { etatPeremption } from '@/domaine/dates';
 import { alimentsDuTiroir, deplacerDansListe, peutSupprimerTiroir, tiroirsDeLAppareil } from '@/domaine/inventaire';
 import type { Aliment, Appareil, Tiroir } from '@/domaine/types';
-import { choisirTiroir, deplacerAvecAnnulation, supprimerAvecAnnulation } from '@/services/actions-aliment';
+import { choisirTiroir, deplacerAvecAnnulation, prendreAliment, supprimerAvecAnnulation } from '@/services/actions-aliment';
 import { confirmer, demander } from '@/services/dialogue';
 import { useDonnees } from '@/services/donnees-maison';
 import { ajouterTiroir, renommerTiroir, reordonnerTiroirs, supprimerTiroir, type Auteur } from '@/services/inventaire';
@@ -233,7 +233,7 @@ function GrilleTiroirs({ maisonId, appareil, tiroirs, aliments, appareils, tousT
                 else vues.current.delete(t.id);
               }}
               onAjouter={() => router.push({ pathname: '/aliment/editer', params: { tiroirId: t.id } })}
-              onOuvrir={(a) => router.push({ pathname: '/aliment/[id]', params: { id: a.id } })}
+              onToucher={(a) => prendreAliment(maisonId, a, auteur, () => router.push({ pathname: '/aliment/[id]', params: { id: a.id } }))}
               onDeplacer={deplacerVers}
               onSupprimer={(a) => supprimerAvecAnnulation(maisonId, a, auteur)}
               glisser={{ debut, bouger, deposer, arreter }}
@@ -243,7 +243,7 @@ function GrilleTiroirs({ maisonId, appareil, tiroirs, aliments, appareils, tousT
         <View className="flex-row items-center gap-2 px-1 pt-1">
           <Ionicons name="hand-left-outline" size={16} color="#94A3B8" />
           <Texte ton="discret" className="flex-1 text-sm">
-            Appui long sur un aliment pour le glisser vers un autre tiroir ou la corbeille.
+            Touche un aliment pour dire combien tu en as pris. Appui long pour le glisser vers un autre tiroir ou la corbeille.
           </Texte>
         </View>
       </ScrollView>
@@ -296,7 +296,7 @@ function CarteTiroir({
   enGlisse,
   enregistrer,
   onAjouter,
-  onOuvrir,
+  onToucher,
   onDeplacer,
   onSupprimer,
   glisser,
@@ -308,7 +308,7 @@ function CarteTiroir({
   enGlisse: string | null;
   enregistrer: (vue: View | null) => void;
   onAjouter: () => void;
-  onOuvrir: (a: Aliment) => void;
+  onToucher: (a: Aliment) => void;
   onDeplacer: (a: Aliment) => void;
   onSupprimer: (a: Aliment) => void;
   glisser: Glisser;
@@ -332,7 +332,7 @@ function CarteTiroir({
               <LigneAliment
                 aliment={a}
                 masque={enGlisse === a.id}
-                onOuvrir={() => onOuvrir(a)}
+                onToucher={() => onToucher(a)}
                 onDeplacer={() => onDeplacer(a)}
                 onSupprimer={() => onSupprimer(a)}
                 glisser={glisser}
@@ -369,14 +369,14 @@ function CarteTiroir({
 function LigneAliment({
   aliment,
   masque,
-  onOuvrir,
+  onToucher,
   onDeplacer,
   onSupprimer,
   glisser,
 }: {
   aliment: Aliment;
   masque: boolean;
-  onOuvrir: () => void;
+  onToucher: () => void;
   onDeplacer: () => void;
   onSupprimer: () => void;
   glisser: Glisser;
@@ -391,7 +391,7 @@ function LigneAliment({
   const toucher = Gesture.Tap()
     .runOnJS(true)
     .onEnd((_e, reussi) => {
-      if (reussi) onOuvrir();
+      if (reussi) onToucher();
     });
 
   return (
@@ -400,7 +400,7 @@ function LigneAliment({
         accessible
         accessibilityRole="button"
         accessibilityLabel={`${aliment.nom}, ${aliment.quantite} sur ${aliment.quantiteMax}`}
-        accessibilityHint="Ouvre la fiche. Appui long pour déplacer."
+        accessibilityHint="Indique combien tu en as pris. Appui long pour déplacer."
         accessibilityActions={[
           { name: 'activate' },
           { name: 'deplacer', label: 'Déplacer vers…' },
@@ -409,7 +409,7 @@ function LigneAliment({
         onAccessibilityAction={(e) => {
           if (e.nativeEvent.actionName === 'deplacer') onDeplacer();
           else if (e.nativeEvent.actionName === 'supprimer') onSupprimer();
-          else onOuvrir();
+          else onToucher();
         }}
         className={`min-h-12 select-none justify-center rounded-2xl bg-carte/80 px-2 py-1.5 active:bg-carte ${masque ? 'opacity-30' : ''}`}>
         <ApercuAliment aliment={aliment} compact />
