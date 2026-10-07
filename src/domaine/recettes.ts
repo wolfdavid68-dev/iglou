@@ -2,6 +2,7 @@ import { etatPeremption } from './dates';
 import { RECETTES_BRUTES, type Categorie, type RecetteBrute } from './recettes-donnees';
 import { RECETTES_BRUTES_2 } from './recettes-donnees-2';
 import { RECETTES_BRUTES_3 } from './recettes-donnees-3';
+import { RECETTES_BRUTES_4 } from './recettes-donnees-4';
 import { INGREDIENTS, type CleIngredient, type DefIngredient } from './recettes-ingredients';
 import { normaliser } from './texte';
 import type { Aliment, CourseLibre } from './types';
@@ -142,10 +143,24 @@ function lireIngredient(entree: string): IngredientRecette {
   };
 }
 
-export const RECETTES: Recette[] = [...RECETTES_BRUTES, ...RECETTES_BRUTES_2, ...RECETTES_BRUTES_3].map((r) => ({
-  ...r,
-  ingredients: r.ingredients.map(lireIngredient),
-}));
+/** Recettes des premiers lots qui sont aussi des repas healthy. */
+export const HEALTHY_EXISTANTES = new Set([
+  'poke-bowl-saumon', 'buddha-bowl', 'salade-quinoa', 'dahl-lentilles', 'soupe-miso', 'saumon-papillote',
+  'gaspacho', 'taboule', 'curry-legumes', 'tofu-saute', 'chili-sin-carne', 'salade-lentilles',
+  'salade-pois-chiches', 'soupe-legumes', 'minestrone', 'salade-poulet-avocat', 'bowl-mexicain',
+  'rouleaux-printemps', 'salade-courgettes-crues', 'curry-pois-chiches-epinards', 'brocolis-rotis',
+  'legumes-rotis', 'ratatouille', 'poisson-four', 'salade-haricots-verts-thon', 'veloute-brocoli',
+  'soupe-lentilles', 'pisto', 'aloo-gobi', 'salade-fenouil-orange', 'carottes-rapees', 'haricots-verts-ail',
+  'soupe-asiatique',
+]);
+
+export const RECETTES: Recette[] = [...RECETTES_BRUTES, ...RECETTES_BRUTES_2, ...RECETTES_BRUTES_3, ...RECETTES_BRUTES_4].map(
+  (r) => ({
+    ...r,
+    healthy: r.healthy === true || HEALTHY_EXISTANTES.has(r.id),
+    ingredients: r.ingredients.map(lireIngredient),
+  }),
+);
 
 /** Les repas du midi et du soir seulement : ni desserts ni petits-déjeuners. */
 export const RECETTES_REPAS: Recette[] = RECETTES.filter((r) => r.categorie !== 'dessert' && r.categorie !== 'petit-dej');

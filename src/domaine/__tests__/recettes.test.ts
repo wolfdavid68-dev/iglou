@@ -1,4 +1,4 @@
-import { RECETTES, RECETTES_REPAS, correspond, manquantsAAjouter, mots, suggererRecettes, trouverRecette } from '../recettes';
+import { HEALTHY_EXISTANTES, RECETTES, RECETTES_REPAS, correspond, manquantsAAjouter, mots, suggererRecettes, trouverRecette } from '../recettes';
 import { INGREDIENTS } from '../recettes-ingredients';
 import { aliment, libre } from './fabriques';
 
@@ -26,6 +26,14 @@ describe('base de recettes', () => {
     expect(RECETTES_REPAS.some((r) => r.categorie === 'dessert' || r.categorie === 'petit-dej')).toBe(false);
     const s = suggererRecettes([aliment({ nom: 'Pommes', quantite: 6 })], AUJOURDHUI, RECETTES_REPAS);
     expect(s.find((x) => x.recette.id === 'compote')).toBeUndefined();
+  });
+
+  it('propose des repas healthy', () => {
+    for (const id of HEALTHY_EXISTANTES) expect(trouverRecette(id)?.healthy).toBe(true);
+    const healthy = RECETTES_REPAS.filter((r) => r.healthy);
+    expect(healthy.length).toBeGreaterThanOrEqual(60);
+    expect(trouverRecette('bowl-quinoa-poulet-avocat')?.healthy).toBe(true);
+    expect(trouverRecette('tartiflette')?.healthy).toBe(false);
   });
 
   it('lit quantités et ingrédients facultatifs', () => {

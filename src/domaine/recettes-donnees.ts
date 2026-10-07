@@ -17,6 +17,8 @@ export interface RecetteBrute {
   portions: number;
   ingredients: EntreeIngredient[];
   etapes: string[];
+  /** Repas léger et équilibré (filtre « Healthy »). */
+  healthy?: boolean;
 }
 
 export const r = (

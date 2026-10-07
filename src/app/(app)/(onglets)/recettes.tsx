@@ -8,12 +8,13 @@ import { RECETTES_REPAS, estPrete, formaterDuree, suggererRecettes, type Suggest
 import { useDonnees } from '@/services/donnees-maison';
 import { useCouleurs } from '@/theme';
 
-type Filtre = 'toutes' | 'pretes' | 'antigaspi';
+type Filtre = 'toutes' | 'pretes' | 'antigaspi' | 'healthy';
 
 const FILTRES: { valeur: Filtre; libelle: string }[] = [
   { valeur: 'toutes', libelle: 'Toutes' },
   { valeur: 'pretes', libelle: 'Prêtes' },
   { valeur: 'antigaspi', libelle: 'Anti-gaspi' },
+  { valeur: 'healthy', libelle: 'Healthy' },
 ];
 
 /** Recettes réalisables avec le contenu du frigo et du congélateur. */
@@ -23,7 +24,13 @@ export default function EcranRecettes() {
 
   const suggestions = suggererRecettes(aliments, new Date(), RECETTES_REPAS);
   const visibles = suggestions.filter((s) =>
-    filtre === 'pretes' ? estPrete(s) : filtre === 'antigaspi' ? s.urgents.length > 0 : true,
+    filtre === 'pretes'
+      ? estPrete(s)
+      : filtre === 'antigaspi'
+        ? s.urgents.length > 0
+        : filtre === 'healthy'
+          ? s.recette.healthy
+          : true,
   );
   const urgents = new Set(suggestions.flatMap((s) => s.urgents.map((a) => a.nom)));
   const enStock = aliments.some((a) => a.quantite > 0);
@@ -66,7 +73,9 @@ export default function EcranRecettes() {
             <Texte ton="secondaire" className="py-8 text-center text-base">
               {filtre === 'pretes'
                 ? 'Aucune recette avec tous les ingrédients. Regarde celles où il en manque peu !'
-                : 'Rien ne périme bientôt : pas d’urgence anti-gaspi.'}
+                : filtre === 'healthy'
+                  ? 'Pas encore de recette healthy avec ce que tu as. Ajoute des légumes frais !'
+                  : 'Rien ne périme bientôt : pas d’urgence anti-gaspi.'}
             </Texte>
           }
           renderItem={({ item }) => <CarteRecette suggestion={item} />}
@@ -86,7 +95,7 @@ function CarteRecette({ suggestion: s }: { suggestion: Suggestion }) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${s.recette.nom}, ${s.recette.minutes} minutes. ${etat}`}
+      accessibilityLabel={`${s.recette.nom}, ${s.recette.minutes} minutes${s.recette.healthy ? ', healthy' : ''}. ${etat}`}
       onPress={() => router.push({ pathname: '/recette/[id]', params: { id: s.recette.id } })}
       className="flex-row items-center gap-3 rounded-2xl border border-bordure bg-carte p-3 active:bg-carte-enfoncee">
       <View className={`size-16 items-center justify-center rounded-2xl ${prete ? 'bg-vert-pale' : 'bg-carte-enfoncee'}`}>
@@ -103,6 +112,11 @@ function CarteRecette({ suggestion: s }: { suggestion: Suggestion }) {
           <Texte ton="discret" className="text-xs">
             {formaterDuree(s.recette.minutes)} · {s.recette.portions} pers.
           </Texte>
+          {s.recette.healthy ? (
+            <Texte ton="vert" poids="moyen" className="text-xs">
+              · 🌿 Healthy
+            </Texte>
+          ) : null}
         </View>
         <View className="flex-row items-center gap-1">
           <Ionicons name={prete ? 'checkmark-circle' : 'cart-outline'} size={14} color={prete ? c.vert : c.courses} />
