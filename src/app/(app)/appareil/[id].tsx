@@ -412,7 +412,10 @@ function LigneAliment({
           else onToucher();
         }}
         className={`min-h-12 select-none justify-center rounded-2xl bg-carte/80 px-2 py-1.5 active:bg-carte ${masque ? 'opacity-30' : ''}`}>
-        <ApercuAliment aliment={aliment} compact />
+        {/* Le contenu laisse passer le toucher : toute la bulle réagit, pas seulement l'emoji. */}
+        <View pointerEvents="none" className="flex-1 flex-row">
+          <ApercuAliment aliment={aliment} compact />
+        </View>
       </View>
     </GestureDetector>
   );
