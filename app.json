@@ -16,7 +16,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.wolfdavid.iglou",
+      "package": "biz.iglou",
       "googleServicesFile": "./google-services.json"
     },
     "web": {

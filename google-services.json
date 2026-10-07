@@ -7,6 +7,25 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:1079813916567:android:99d58adc76a553ec93e6d2",
+        "android_client_info": {
+          "package_name": "biz.iglou"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAGliGMVJ-IbgFBGkvrIGSxqrJ_yr45neA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:1079813916567:android:57d98418bc465b8d93e6d2",
         "android_client_info": {
           "package_name": "com.wolfdavid.congelateur"
