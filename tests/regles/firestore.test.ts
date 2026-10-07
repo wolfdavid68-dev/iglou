@@ -50,7 +50,7 @@ async function rejoindre(uid: string, code = CODE, maisonId = MAISON) {
 
 beforeAll(async () => {
   env = await initializeTestEnvironment({
-    projectId: 'demo-congelateur',
+    projectId: 'demo-iglou',
     firestore: { rules: readFileSync(resolve(__dirname, '../../firestore.rules'), 'utf8') },
   });
 });

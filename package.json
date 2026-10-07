@@ -1,5 +1,5 @@
 {
-  "name": "congelateur",
+  "name": "iglou",
   "main": "expo-router/entry",
   "version": "1.0.0",
   "dependencies": {
@@ -60,7 +60,7 @@
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
     "test": "jest --selectProjects domaine",
-    "test:regles": "firebase emulators:exec --only firestore --project demo-congelateur \"jest --selectProjects regles\""
+    "test:regles": "firebase emulators:exec --only firestore --project demo-iglou \"jest --selectProjects regles\""
   },
   "private": true,
   "jest": {

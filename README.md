@@ -49,7 +49,7 @@ npm run test:regles     # règles Firestore sur l'émulateur (Java 21 requis)
    npx firebase-tools deploy --only firestore
    ```
 
-3. **Android** : le fichier `google-services.json` doit correspondre au paquet `com.wolfdavid.congelateur`.
+3. **Android** : le fichier `google-services.json` doit correspondre au paquet `biz.iglou`.
    Le nom de paquet est **provisoire** : à changer dans `app.json` *et* dans Firebase avant la première publication (il ne pourra plus changer ensuite sur le Play Store).
 4. **Empreintes SHA** : après le premier build EAS, ajouter les SHA-1/SHA-256 (`npx eas-cli@latest credentials`) dans les paramètres du projet Firebase.
 
