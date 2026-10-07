@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useState, useSyncExternalStore } from 'react';
 import { Modal, Pressable, Text, TextInput, View } from 'react-native';
 
@@ -49,17 +50,29 @@ function Fenetre({ d }: { d: DemandePrise }) {
         <Pressable className="w-full max-w-sm gap-4 rounded-3xl bg-carte p-6" onPress={() => {}} accessibilityViewIsModal>
           <BoutonIcone icone="close" libelle="Fermer" couleur={c.encre2} onPress={() => repondrePrise(null)} className="absolute right-2 top-2 z-10" />
 
-          <View className="items-center gap-1">
+          {/* En-tête : toucher l'aliment ouvre sa fiche complète. */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${a.nom}, il en reste ${formaterQuantite(a.quantite, a.unite)}. Voir la fiche complète`}
+            onPress={() => repondrePrise('fiche')}
+            className="items-center gap-1 rounded-2xl py-1 active:bg-carte-enfoncee">
             <Text className="text-6xl" accessible={false}>
               {emojiPourNom(a.nom)}
             </Text>
-            <Texte poids="gras" className="text-center text-xl" numberOfLines={2} accessibilityRole="header">
+            <Texte poids="gras" className="text-center text-xl" numberOfLines={2}>
               {a.nom}
             </Texte>
             <Texte ton="secondaire" className="text-sm">
               Il en reste {formaterQuantite(a.quantite, a.unite)}
             </Texte>
-          </View>
+            <View className="mt-1 flex-row items-center gap-1.5 rounded-full bg-carte-enfoncee px-3 py-1.5">
+              <Ionicons name="document-text-outline" size={16} color={c.frigo} />
+              <Texte poids="demi" ton="frigo" className="text-sm">
+                Voir la fiche complète
+              </Texte>
+              <Ionicons name="chevron-forward" size={16} color={c.frigo} />
+            </View>
+          </Pressable>
           <Jauge stock={a} />
 
           <Texte poids="demi" className="text-center text-base">
@@ -121,7 +134,6 @@ function Fenetre({ d }: { d: DemandePrise }) {
             {prise !== a.quantite ? (
               <Bouton titre={`J’ai tout pris (${nombre(a.quantite)})`} variante="secondaire" onPress={() => repondrePrise({ quantite: a.quantite })} />
             ) : null}
-            <Bouton titre="Voir la fiche" icone="document-text-outline" variante="discret" onPress={() => repondrePrise('fiche')} />
           </View>
         </Pressable>
       </Pressable>
