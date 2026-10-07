@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "congelateur",
+    "scheme": "iglou",
     "userInterfaceStyle": "automatic",
     "ios": {},
     "android": {
@@ -16,7 +16,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.wolfdavid.congelateur",
+      "package": "com.wolfdavid.iglou",
       "googleServicesFile": "./google-services.json"
     },
     "web": {
