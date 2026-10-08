@@ -31,7 +31,7 @@ describe('base de recettes', () => {
   it('propose des repas healthy', () => {
     for (const id of HEALTHY_EXISTANTES) expect(trouverRecette(id)?.healthy).toBe(true);
     const healthy = RECETTES_REPAS.filter((r) => r.healthy);
-    expect(healthy.length).toBeGreaterThanOrEqual(60);
+    expect(healthy.length).toBeGreaterThanOrEqual(260);
     expect(trouverRecette('bowl-quinoa-poulet-avocat')?.healthy).toBe(true);
     expect(trouverRecette('tartiflette')?.healthy).toBe(false);
   });

@@ -1,7 +1,7 @@
 import { r, type RecetteBrute } from './recettes-donnees';
 
 /** Recette légère et équilibrée : légumes, protéines maigres, peu de gras ajouté. */
-const h = (...args: Parameters<typeof r>): RecetteBrute => ({ ...r(...args), healthy: true });
+export const h = (...args: Parameters<typeof r>): RecetteBrute => ({ ...r(...args), healthy: true });
 
 /**
  * Quatrième lot : des repas healthy (bowls, poissons, légumineuses, légumes).
