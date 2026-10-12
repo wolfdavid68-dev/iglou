@@ -49,6 +49,38 @@ describe('liste de courses', () => {
   });
 });
 
+describe('liste de courses par rayon', () => {
+  const liste = () =>
+    calculerListeCourses(
+      [
+        aliment({ id: 'steak', nom: 'Steak haché', quantite: 1, quantiteMax: 4, appareilId: 'congel' }),
+        aliment({ id: 'pates', nom: 'Pâtes', quantite: 1, quantiteMax: 2 }),
+        aliment({ id: 'poulet', nom: 'Poulet', quantite: 0, quantiteMax: 2 }),
+        aliment({ id: 'jambon', nom: 'Jambon', quantite: 1, quantiteMax: 2 }),
+        aliment({ id: 'plein', nom: 'Beurre', quantite: 2, quantiteMax: 2 }),
+      ],
+      [frigo, congel],
+      [libre({ id: 'riz', nom: 'Riz basmati' }), libre({ id: 'eponges', nom: 'Éponges' })],
+      'rayon',
+    );
+
+  test('groupés par rayon dans l’ordre du magasin, tous appareils et articles libres confondus', () => {
+    const groupes = liste();
+    expect(groupes.map((g) => g.cle)).toEqual(['viandes', 'feculents', 'maison']);
+    expect(groupes[0]).toMatchObject({ titre: 'Viandes et charcuterie', type: 'rayon', emoji: '🥩' });
+    expect(groupes[1].articles.map((a) => a.id)).toEqual(['pates', 'riz']);
+    expect(compterArticles(groupes)).toBe(6);
+  });
+
+  test('épuisés en premier dans chaque rayon, puis par nom', () => {
+    expect(liste()[0].articles.map((a) => a.id)).toEqual(['poulet', 'jambon', 'steak']);
+  });
+
+  test("le texte partagé reprend l'emoji du rayon", () => {
+    expect(texteListeCourses(liste(), 'Maison')).toContain('🥩 Viandes et charcuterie');
+  });
+});
+
 describe("« J'ai rangé les courses »", () => {
   test('les aliments cochés reviennent au stock plein et sortent de la liste', () => {
     const oeufs = aliment({ id: 'oeufs', quantite: 2, quantiteMax: 6, dansPanier: true });

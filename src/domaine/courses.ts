@@ -1,4 +1,5 @@
 import { estEpuise, fixerQuantite, manque } from './quantites';
+import { RAYONS, rayonPourNom, type CleRayon } from './rayons';
 import { arrondir } from './texte';
 import type { Aliment, Appareil, CourseLibre, TypeAppareil, Unite } from './types';
 
@@ -31,9 +32,14 @@ export type Article = ArticleAliment | ArticleLibre;
 export interface GroupeCourses {
   cle: string;
   titre: string;
-  type: TypeAppareil | 'libre';
+  type: TypeAppareil | 'libre' | 'rayon';
+  /** Rayons seulement. */
+  emoji?: string;
   articles: Article[];
 }
+
+/** Liste groupée par appareil (où ranger), ou par rayon (où acheter). */
+export type TriCourses = 'appareil' | 'rayon';
 
 const comparerNoms = (a: { nom: string }, b: { nom: string }) => a.nom.localeCompare(b.nom, 'fr', { sensitivity: 'base' });
 
@@ -45,22 +51,34 @@ export function articlesAManquer(aliments: Aliment[]): Aliment[] {
  * Liste de courses : les aliments sous leur maximum, regroupés par appareil
  * (dans l'ordre des appareils), épuisés en premier, puis les articles libres.
  */
-export function calculerListeCourses(aliments: Aliment[], appareils: Appareil[], libres: CourseLibre[]): GroupeCourses[] {
+function articleAliment(aliment: Aliment): ArticleAliment {
+  const m = manque(aliment);
+  return {
+    genre: 'aliment',
+    id: aliment.id,
+    nom: aliment.nom,
+    unite: aliment.unite,
+    manque: m,
+    aRanger: aliment.achatQuantite ?? m,
+    epuise: estEpuise(aliment),
+    dansPanier: aliment.dansPanier,
+    aliment,
+  };
+}
+
+function articleLibre(libre: CourseLibre): ArticleLibre {
+  return { genre: 'libre', id: libre.id, nom: libre.nom, unite: libre.unite, quantite: libre.quantite, dansPanier: libre.dansPanier, libre };
+}
+
+const estEpuiseArticle = (a: Article) => a.genre === 'aliment' && a.epuise;
+const epuisesPuisNoms = (a: Article, b: Article) => Number(estEpuiseArticle(b)) - Number(estEpuiseArticle(a)) || comparerNoms(a, b);
+
+export function calculerListeCourses(aliments: Aliment[], appareils: Appareil[], libres: CourseLibre[], tri: TriCourses = 'appareil'): GroupeCourses[] {
+  if (tri === 'rayon') return listeParRayon(aliments, libres);
   const parAppareil = new Map<string, ArticleAliment[]>();
   for (const aliment of articlesAManquer(aliments)) {
     const liste = parAppareil.get(aliment.appareilId) ?? [];
-    const m = manque(aliment);
-    liste.push({
-      genre: 'aliment',
-      id: aliment.id,
-      nom: aliment.nom,
-      unite: aliment.unite,
-      manque: m,
-      aRanger: aliment.achatQuantite ?? m,
-      epuise: estEpuise(aliment),
-      dansPanier: aliment.dansPanier,
-      aliment,
-    });
+    liste.push(articleAliment(aliment));
     parAppareil.set(aliment.appareilId, liste);
   }
 
@@ -82,19 +100,31 @@ export function calculerListeCourses(aliments: Aliment[], appareils: Appareil[],
   }
 
   if (libres.length) {
-    const articles: ArticleLibre[] = [...libres].sort(comparerNoms).map((libre) => ({
-      genre: 'libre',
-      id: libre.id,
-      nom: libre.nom,
-      unite: libre.unite,
-      quantite: libre.quantite,
-      dansPanier: libre.dansPanier,
-      libre,
-    }));
+    const articles = [...libres].sort(comparerNoms).map(articleLibre);
     groupes.push({ cle: 'libres', titre: 'Autres articles', type: 'libre', articles });
   }
 
   return groupes;
+}
+
+/**
+ * Par rayon : aliments et articles libres mêlés, rayon déduit du nom,
+ * dans l'ordre des rayons, épuisés en premier puis par nom.
+ */
+function listeParRayon(aliments: Aliment[], libres: CourseLibre[]): GroupeCourses[] {
+  const parRayon = new Map<CleRayon, Article[]>();
+  const articles: Article[] = [...articlesAManquer(aliments).map(articleAliment), ...libres.map(articleLibre)];
+  for (const article of articles) {
+    const cle = rayonPourNom(article.nom);
+    parRayon.set(cle, [...(parRayon.get(cle) ?? []), article]);
+  }
+  return RAYONS.filter((r) => parRayon.has(r.cle)).map((r) => ({
+    cle: r.cle,
+    titre: r.nom,
+    type: 'rayon',
+    emoji: r.emoji,
+    articles: parRayon.get(r.cle)!.sort(epuisesPuisNoms),
+  }));
 }
 
 export function compterArticles(groupes: GroupeCourses[]): number {
@@ -141,7 +171,8 @@ export function ajusterAchat(aliment: Aliment, quantiteAchetee: number): number 
 export function texteListeCourses(groupes: GroupeCourses[], nomMaison: string): string {
   const lignes: string[] = [`🛒 Courses – ${nomMaison}`];
   for (const groupe of groupes) {
-    lignes.push('', `${groupe.type === 'congelateur' ? '❄️' : groupe.type === 'libre' ? '📝' : '🧊'} ${groupe.titre}`);
+    const icone = groupe.emoji ?? (groupe.type === 'congelateur' ? '❄️' : groupe.type === 'libre' ? '📝' : '🧊');
+    lignes.push('', `${icone} ${groupe.titre}`);
     for (const article of groupe.articles) {
       const quantite = article.genre === 'aliment' ? article.aRanger : article.quantite;
       const coche = article.dansPanier ? '✅' : '▫️';

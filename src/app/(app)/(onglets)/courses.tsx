@@ -6,8 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconeAppareil } from '@/composants/appareil';
 import { BoutonVerre, EnTeteDegrade, PuceVerre } from '@/composants/en-tete-degrade';
-import { Bouton, Carte, Champ, Chargement, Compteur, EtatVide, Separateur, Texte } from '@/composants/ui';
-import { ajusterAchat, calculerListeCourses, compterArticles, texteListeCourses, type Article, type GroupeCourses } from '@/domaine/courses';
+import { Bouton, Carte, Champ, Chargement, Compteur, EtatVide, Segments, Separateur, Texte } from '@/composants/ui';
+import { ajusterAchat, calculerListeCourses, compterArticles, texteListeCourses, type Article, type GroupeCourses, type TriCourses } from '@/domaine/courses';
 import { emojiPourNom } from '@/domaine/emoji';
 import { pasPourUnite } from '@/domaine/quantites';
 import { formaterQuantite, memeNom } from '@/domaine/texte';
@@ -17,6 +17,7 @@ import { ajouterLibre, modifierAliment, modifierLibre, rangerCourses, supprimerL
 import { afficherMessage, lancer, signalerErreur } from '@/services/retours';
 import { partagerTexte } from '@/services/partage';
 import { useMoi } from '@/services/session';
+import { choisirTriCourses, triCoursesEnregistre } from '@/services/tri-courses';
 import { useCouleurs } from '@/theme';
 
 const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? 's' : ''}`;
@@ -29,11 +30,12 @@ export default function EcranCourses() {
   const auteur: Auteur = { uid: moi.uid, prenom: moi.prenom };
   const insets = useSafeAreaInsets();
   const [edition, setEdition] = useState<Article | null>(null);
+  const [tri, setTri] = useState<TriCourses>(triCoursesEnregistre);
   const c = useCouleurs();
 
   if (chargement) return <Chargement />;
 
-  const groupes = calculerListeCourses(aliments, appareils, libres);
+  const groupes = calculerListeCourses(aliments, appareils, libres, tri);
   const total = compterArticles(groupes);
   const articles = groupes.flatMap((g) => g.articles);
   const panier = articles.filter((a) => a.dansPanier).length;
@@ -101,6 +103,14 @@ export default function EcranCourses() {
         <EtatVide emoji="🛒" titre="Rien à acheter, tout est plein 🎉" texte="Les aliments sous leur stock plein apparaissent ici automatiquement." />
       ) : (
         <ScrollView contentContainerClassName="gap-5 px-4 pb-6 pt-2">
+          <Segments
+            options={OPTIONS_TRI}
+            valeur={tri}
+            onChange={(t) => {
+              setTri(t);
+              choisirTriCourses(t);
+            }}
+          />
           {groupes.map((g) => (
             <SectionGroupe key={g.cle} groupe={g} onBasculer={basculer} onEditer={setEdition} />
           ))}
@@ -193,12 +203,21 @@ function AjoutLibre({ maisonId, auteur, libres }: { maisonId: string; auteur: Au
 
 /* ---------------- Groupes et lignes ---------------- */
 
+const OPTIONS_TRI: { valeur: TriCourses; libelle: string }[] = [
+  { valeur: 'appareil', libelle: 'Par appareil' },
+  { valeur: 'rayon', libelle: 'Par rayon' },
+];
+
 function SectionGroupe({ groupe, onBasculer, onEditer }: { groupe: GroupeCourses; onBasculer: (a: Article) => void; onEditer: (a: Article) => void }) {
   const c = useCouleurs();
   return (
     <View className="gap-2">
       <View className="flex-row items-center gap-2" accessibilityRole="header">
-        {groupe.type === 'libre' ? (
+        {groupe.type === 'rayon' ? (
+          <View className="size-9 items-center justify-center rounded-xl bg-courses-pale">
+            <Text style={{ fontSize: 18 }}>{groupe.emoji}</Text>
+          </View>
+        ) : groupe.type === 'libre' ? (
           <View className="size-9 items-center justify-center rounded-xl bg-courses-pale">
             <Ionicons name="list" size={20} color={c.courses} />
           </View>
