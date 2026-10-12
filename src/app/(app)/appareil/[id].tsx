@@ -146,6 +146,17 @@ function GrilleTiroirs({ maisonId, appareil, tiroirs, aliments, appareils, tousT
   const corbeille = useRef<View>(null);
   const zoneCorbeille = useRef<Rect | null>(null);
 
+  // Web : les aliments laissent le navigateur faire défiler la liste (`touchAction` « pan-y »),
+  // sauf pendant un glisser, où ce défilement couperait le geste.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const bloquer = (e: TouchEvent) => {
+      if (glisseRef.current && e.cancelable) e.preventDefault();
+    };
+    document.addEventListener('touchmove', bloquer, { passive: false });
+    return () => document.removeEventListener('touchmove', bloquer);
+  }, []);
+
   const styleFantome = useAnimatedStyle(() => ({
     transform: [{ translateX: x.value - LARGEUR_FANTOME / 2 }, { translateY: y.value - 72 }],
   }));
@@ -495,7 +506,7 @@ function LigneAliment({
     });
 
   return (
-    <GestureDetector gesture={Gesture.Exclusive(pan, toucher)}>
+    <GestureDetector gesture={Gesture.Exclusive(pan, toucher)} touchAction="pan-y">
       <View
         accessible
         accessibilityRole="button"
