@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { BackHandler, Platform, Pressable, View } from 'react-native';
 import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
-import Animated, { FadeInDown, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ApercuAliment } from '@/composants/aliment';
@@ -25,6 +25,9 @@ import { HAUTEUR_CORBEILLE, classesAppareil, useCouleurs } from '@/theme';
 const MAX_TIROIRS = 20;
 const LARGEUR_FANTOME = 200;
 const CORBEILLE = 'corbeille';
+const AUTRE_APPAREIL = 'autre-appareil';
+/** Au-delà, les tiroirs cibles passent sur deux colonnes pour tenir à l'écran. */
+const MAX_UNE_COLONNE = 5;
 
 export default function EcranAppareil() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -138,8 +141,8 @@ function GrilleTiroirs({ maisonId, appareil, tiroirs, aliments, appareils, tousT
   const y = useSharedValue(0);
   const racine = useRef<View>(null);
   const origine = useRef({ x: 0, y: 0 });
-  const vues = useRef(new Map<string, View>());
-  const zones = useRef<Rect[]>([]);
+  // Cibles du panneau « Lâche dans… », mesurées dès qu'il s'affiche.
+  const zones = useRef(new Map<string, Rect>());
   const corbeille = useRef<View>(null);
   const zoneCorbeille = useRef<Rect | null>(null);
 
@@ -149,7 +152,8 @@ function GrilleTiroirs({ maisonId, appareil, tiroirs, aliments, appareils, tousT
 
   const cibleEn = (px: number, py: number): string | null => {
     if (zoneCorbeille.current && contient(zoneCorbeille.current, px, py)) return CORBEILLE;
-    return zones.current.find((z) => contient(z, px, py))?.id ?? null;
+    for (const z of zones.current.values()) if (contient(z, px, py)) return z.id;
+    return null;
   };
 
   const placer = (px: number, py: number) => {
@@ -162,12 +166,7 @@ function GrilleTiroirs({ maisonId, appareil, tiroirs, aliments, appareils, tousT
       origine.current = { x: ox, y: oy };
       placer(px, py);
     });
-    zones.current = [];
-    vues.current.forEach((vue, tiroirId) =>
-      vue.measureInWindow((zx, zy, l, h) => {
-        zones.current.push({ id: tiroirId, x: zx, y: zy, l, h });
-      }),
-    );
+    zones.current.clear();
     placer(px, py);
     glisseRef.current = { aliment, cible: null };
     setGlisse(glisseRef.current);
@@ -190,6 +189,7 @@ function GrilleTiroirs({ maisonId, appareil, tiroirs, aliments, appareils, tousT
   const arreter = () => {
     glisseRef.current = null;
     zoneCorbeille.current = null;
+    zones.current.clear();
     setGlisse(null);
   };
 
@@ -202,14 +202,24 @@ function GrilleTiroirs({ maisonId, appareil, tiroirs, aliments, appareils, tousT
       supprimerAvecAnnulation(maisonId, g.aliment, auteur);
       return;
     }
+    if (cible === AUTRE_APPAREIL) {
+      deplacerVers(g.aliment);
+      return;
+    }
     const tiroir = tiroirs.find((t) => t.id === cible);
     if (tiroir) deplacerAvecAnnulation(maisonId, g.aliment, tiroir, tousTiroirs, auteur);
   };
 
-  const deplacerVers = async (a: Aliment) => {
+  const mesurer = (id: string, vue: View | null) => {
+    vue?.measureInWindow((zx, zy, l, h) => {
+      zones.current.set(id, { id, x: zx, y: zy, l, h });
+    });
+  };
+
+  async function deplacerVers(a: Aliment) {
     const cible = await choisirTiroir(`Déplacer « ${a.nom} » vers…`, appareils, tousTiroirs, a.tiroirId);
     if (cible) deplacerAvecAnnulation(maisonId, a, cible, tousTiroirs, auteur);
-  };
+  }
 
   return (
     <View ref={racine} collapsable={false} className="flex-1">
@@ -226,12 +236,7 @@ function GrilleTiroirs({ maisonId, appareil, tiroirs, aliments, appareils, tousT
               tiroir={t}
               appareil={appareil}
               contenu={alimentsDuTiroir(aliments, t.id)}
-              survole={glisse?.cible === t.id}
               enGlisse={glisse?.aliment.id ?? null}
-              enregistrer={(vue) => {
-                if (vue) vues.current.set(t.id, vue);
-                else vues.current.delete(t.id);
-              }}
               onAjouter={() => router.push({ pathname: '/aliment/editer', params: { tiroirId: t.id } })}
               onToucher={(a) => prendreAliment(maisonId, a, auteur, () => router.push({ pathname: '/aliment/[id]', params: { id: a.id } }))}
               onDeplacer={deplacerVers}
@@ -243,13 +248,23 @@ function GrilleTiroirs({ maisonId, appareil, tiroirs, aliments, appareils, tousT
         <View className="flex-row items-center gap-2 px-1 pt-1">
           <Ionicons name="hand-left-outline" size={16} color="#94A3B8" />
           <Texte ton="discret" className="flex-1 text-sm">
-            Touche un aliment pour dire combien tu en as pris. Appui long pour le glisser vers un autre tiroir ou la corbeille.
+            Touche un aliment pour dire combien tu en as pris. Appui long pour le lâcher dans un autre tiroir ou la corbeille.
           </Texte>
         </View>
       </ScrollView>
 
       {glisse && (
         <>
+          <PanneauCibles
+            appareil={appareil}
+            tiroirs={tiroirs}
+            aliments={aliments}
+            depart={glisse.aliment.tiroirId}
+            cible={glisse.cible}
+            autreAppareil={appareils.length > 1}
+            bas={insets.bottom + 16 + HAUTEUR_CORBEILLE + 12}
+            mesurer={mesurer}
+          />
           <View
             ref={corbeille}
             collapsable={false}
@@ -281,6 +296,98 @@ function GrilleTiroirs({ maisonId, appareil, tiroirs, aliments, appareils, tousT
   );
 }
 
+/**
+ * Pendant un glisser : tous les tiroirs de l'appareil en grandes cibles,
+ * à l'écran d'un coup, pour déposer sans avoir à faire défiler.
+ */
+function PanneauCibles({
+  appareil,
+  tiroirs,
+  aliments,
+  depart,
+  cible,
+  autreAppareil,
+  bas,
+  mesurer,
+}: {
+  appareil: Appareil;
+  tiroirs: Tiroir[];
+  aliments: Aliment[];
+  depart: string;
+  cible: string | null;
+  autreAppareil: boolean;
+  bas: number;
+  mesurer: (id: string, vue: View | null) => void;
+}) {
+  const classes = classesAppareil[appareil.type];
+  const colonnes = tiroirs.length > MAX_UNE_COLONNE ? 2 : 1;
+  const cases: ({ id: string; nom: string; nombre: number | null } | null)[] = tiroirs.map((t) => ({
+    id: t.id,
+    nom: t.nom,
+    nombre: alimentsDuTiroir(aliments, t.id).length,
+  }));
+  if (autreAppareil) cases.push({ id: AUTRE_APPAREIL, nom: 'Autre appareil…', nombre: null });
+  while (cases.length % colonnes) cases.push(null);
+  const lignes: (typeof cases)[] = [];
+  for (let i = 0; i < cases.length; i += colonnes) lignes.push(cases.slice(i, i + colonnes));
+
+  return (
+    <Animated.View entering={FadeIn.duration(150)} pointerEvents="none" style={{ bottom: bas }} className="absolute inset-x-0 top-0 gap-2 bg-fond/95 px-4 pt-3">
+      <Texte poids="demi" ton="secondaire" className="text-center text-sm">
+        Lâche dans un tiroir
+      </Texte>
+      {lignes.map((ligne, i) => (
+        <View key={i} className="max-h-24 flex-1 flex-row gap-2">
+          {ligne.map((k, j) => {
+            if (!k) return <View key={`vide-${j}`} className="flex-1" />;
+            const ici = k.id === depart;
+            const survole = cible === k.id;
+            return (
+              <CaseCible
+                key={k.id}
+                onMesure={ici ? undefined : (vue) => mesurer(k.id, vue)}
+                className={`flex-1 flex-row items-center justify-center gap-2 rounded-2xl border-2 px-3 ${
+                  ici
+                    ? 'border-dashed border-bordure opacity-50'
+                    : survole
+                      ? `${classes.bordure} ${classes.pale}`
+                      : k.nombre == null
+                        ? 'border-dashed border-encre-3/50 bg-carte'
+                        : 'border-bordure bg-facade'
+                }`}>
+                <Texte poids={survole ? 'gras' : 'demi'} className="shrink text-base" numberOfLines={1}>
+                  {k.nom}
+                </Texte>
+                {ici ? (
+                  <Texte ton="discret" className="text-xs">
+                    déjà ici
+                  </Texte>
+                ) : k.nombre != null ? (
+                  <View className={`rounded-full px-2 py-0.5 ${classes.pale}`}>
+                    <Texte poids="demi" ton={appareil.type} className="text-xs">
+                      {k.nombre}
+                    </Texte>
+                  </View>
+                ) : null}
+              </CaseCible>
+            );
+          })}
+        </View>
+      ))}
+    </Animated.View>
+  );
+}
+
+/** Case du panneau, mesurée à l'écran une fois placée (sauf le tiroir de départ). */
+function CaseCible({ onMesure, className, children }: { onMesure?: (vue: View | null) => void; className: string; children: ReactNode }) {
+  const vue = useRef<View>(null);
+  return (
+    <View ref={vue} collapsable={false} onLayout={() => onMesure?.(vue.current)} className={className}>
+      {children}
+    </View>
+  );
+}
+
 interface Glisser {
   debut: (a: Aliment, x: number, y: number) => void;
   bouger: (x: number, y: number) => void;
@@ -292,9 +399,7 @@ function CarteTiroir({
   tiroir,
   appareil,
   contenu,
-  survole,
   enGlisse,
-  enregistrer,
   onAjouter,
   onToucher,
   onDeplacer,
@@ -304,9 +409,7 @@ function CarteTiroir({
   tiroir: Tiroir;
   appareil: Appareil;
   contenu: Aliment[];
-  survole: boolean;
   enGlisse: string | null;
-  enregistrer: (vue: View | null) => void;
   onAjouter: () => void;
   onToucher: (a: Aliment) => void;
   onDeplacer: (a: Aliment) => void;
@@ -316,15 +419,12 @@ function CarteTiroir({
   const c = useCouleurs();
   const classes = classesAppareil[appareil.type];
   return (
-    <View
-      ref={enregistrer}
-      collapsable={false}
-      className={`overflow-hidden rounded-3xl border-2 shadow-sm ${survole ? `${classes.bordure} ${classes.pale}` : 'border-vitre-bord bg-vitre'}`}>
+    <View className="overflow-hidden rounded-3xl border-2 border-vitre-bord bg-vitre shadow-sm">
       {/* Bac vitré */}
       <View className="min-h-20 flex-row flex-wrap p-1.5">
         {contenu.length === 0 ? (
           <Texte ton="discret" className="w-full self-center px-2 py-4 text-center text-sm">
-            {survole ? 'Lâcher ici' : 'Tiroir vide'}
+            Tiroir vide
           </Texte>
         ) : (
           contenu.map((a) => (
