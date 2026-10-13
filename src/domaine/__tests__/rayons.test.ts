@@ -1,4 +1,4 @@
-import { RAYONS, rayonPourNom } from '../rayons';
+import { RAYONS, filtrerParRayons, rayonPourNom, rayonsPresents } from '../rayons';
 
 describe('rayon d’un aliment', () => {
   test.each([
@@ -32,5 +32,25 @@ describe('rayon d’un aliment', () => {
 
   test('chaque rayon a une clé unique', () => {
     expect(new Set(RAYONS.map((r) => r.cle)).size).toBe(RAYONS.length);
+  });
+});
+
+describe('filtre par type d’aliment', () => {
+  const contenu = [{ nom: 'Steak haché' }, { nom: 'Saumon' }, { nom: 'Carottes' }, { nom: 'Lardons' }];
+
+  test('rayons présents, dans l’ordre d’affichage, avec leur nombre', () => {
+    expect(rayonsPresents(contenu).map((p) => [p.rayon.cle, p.nombre])).toEqual([
+      ['legumes', 1],
+      ['viandes', 2],
+      ['poissons', 1],
+    ]);
+  });
+
+  test('ne garde que les rayons choisis', () => {
+    expect(filtrerParRayons(contenu, new Set(['viandes', 'poissons'] as const)).map((a) => a.nom)).toEqual(['Steak haché', 'Saumon', 'Lardons']);
+  });
+
+  test('aucun rayon choisi : tout reste', () => {
+    expect(filtrerParRayons(contenu, new Set())).toEqual(contenu);
   });
 });

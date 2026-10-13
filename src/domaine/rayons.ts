@@ -4,25 +4,27 @@ import { normaliser } from './texte';
 export interface Rayon {
   cle: string;
   nom: string;
+  /** Libellé court, pour les puces de filtre. */
+  court: string;
   emoji: string;
 }
 
 /** Dans l'ordre d'affichage. */
 export const RAYONS = [
-  { cle: 'fruits', nom: 'Fruits', emoji: '🍎' },
-  { cle: 'legumes', nom: 'Légumes', emoji: '🥕' },
-  { cle: 'viandes', nom: 'Viandes et charcuterie', emoji: '🥩' },
-  { cle: 'poissons', nom: 'Poissons et fruits de mer', emoji: '🐟' },
-  { cle: 'cremerie', nom: 'Crèmerie, œufs et fromages', emoji: '🧀' },
-  { cle: 'feculents', nom: 'Pâtes, riz et féculents', emoji: '🍝' },
-  { cle: 'boulangerie', nom: 'Pain et viennoiseries', emoji: '🥖' },
-  { cle: 'plats', nom: 'Plats préparés', emoji: '🍕' },
-  { cle: 'surgeles', nom: 'Glaces et surgelés', emoji: '🍦' },
-  { cle: 'sucre', nom: 'Sucré et desserts', emoji: '🍫' },
-  { cle: 'epicerie', nom: 'Épicerie et condiments', emoji: '🥫' },
-  { cle: 'boissons', nom: 'Boissons', emoji: '🥤' },
-  { cle: 'maison', nom: 'Hygiène et entretien', emoji: '🧽' },
-  { cle: 'autres', nom: 'Autres', emoji: '🛒' },
+  { cle: 'fruits', nom: 'Fruits', court: 'Fruits', emoji: '🍎' },
+  { cle: 'legumes', nom: 'Légumes', court: 'Légumes', emoji: '🥕' },
+  { cle: 'viandes', nom: 'Viandes et charcuterie', court: 'Viandes', emoji: '🥩' },
+  { cle: 'poissons', nom: 'Poissons et fruits de mer', court: 'Poissons', emoji: '🐟' },
+  { cle: 'cremerie', nom: 'Crèmerie, œufs et fromages', court: 'Crèmerie', emoji: '🧀' },
+  { cle: 'feculents', nom: 'Pâtes, riz et féculents', court: 'Féculents', emoji: '🍝' },
+  { cle: 'boulangerie', nom: 'Pain et viennoiseries', court: 'Pain', emoji: '🥖' },
+  { cle: 'plats', nom: 'Plats préparés', court: 'Plats', emoji: '🍕' },
+  { cle: 'surgeles', nom: 'Glaces et surgelés', court: 'Glaces', emoji: '🍦' },
+  { cle: 'sucre', nom: 'Sucré et desserts', court: 'Sucré', emoji: '🍫' },
+  { cle: 'epicerie', nom: 'Épicerie et condiments', court: 'Épicerie', emoji: '🥫' },
+  { cle: 'boissons', nom: 'Boissons', court: 'Boissons', emoji: '🥤' },
+  { cle: 'maison', nom: 'Hygiène et entretien', court: 'Entretien', emoji: '🧽' },
+  { cle: 'autres', nom: 'Autres', court: 'Autres', emoji: '🛒' },
 ] as const satisfies readonly Rayon[];
 
 export type CleRayon = (typeof RAYONS)[number]['cle'];
@@ -65,4 +67,25 @@ export function rayonPourNom(nom: string): CleRayon {
     }
   }
   return 'autres';
+}
+
+export interface FiltreRayon {
+  rayon: (typeof RAYONS)[number];
+  nombre: number;
+}
+
+/** Rayons représentés parmi ces aliments, dans l'ordre d'affichage, avec leur nombre. */
+export function rayonsPresents(aliments: readonly { nom: string }[]): FiltreRayon[] {
+  const nombres = new Map<CleRayon, number>();
+  for (const a of aliments) {
+    const r = rayonPourNom(a.nom);
+    nombres.set(r, (nombres.get(r) ?? 0) + 1);
+  }
+  return RAYONS.filter((r) => nombres.has(r.cle)).map((r) => ({ rayon: r, nombre: nombres.get(r.cle)! }));
+}
+
+/** Aliments des rayons choisis ; aucun rayon choisi = tout. */
+export function filtrerParRayons<T extends { nom: string }>(aliments: readonly T[], rayons: ReadonlySet<CleRayon>): T[] {
+  if (rayons.size === 0) return [...aliments];
+  return aliments.filter((a) => rayons.has(rayonPourNom(a.nom)));
 }
