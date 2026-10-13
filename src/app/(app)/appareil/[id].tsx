@@ -350,7 +350,7 @@ function FiltreRayons({
 }) {
   const total = presents.reduce((n, p) => n + p.nombre, 0);
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} className="grow-0" contentContainerClassName="gap-2 px-4 py-3">
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }} contentContainerClassName="gap-2 px-4 py-3">
       <PuceFiltre appareil={appareil} libelle="Tout" nombre={total} actif={actifs.size === 0} onPress={() => onBasculer(null)} />
       {presents.map(({ rayon, nombre }) => (
         <PuceFiltre
