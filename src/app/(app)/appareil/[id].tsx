@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { BackHandler, Platform, Pressable, View } from 'react-native';
+import { BackHandler, Platform, Pressable, Text, View } from 'react-native';
 import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
 import Animated, { FadeIn, FadeInDown, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,10 +13,12 @@ import { Degrade, libelleType } from '@/composants/appareil';
 import { Bouton, BoutonIcone, Carte, Champ, Chargement, EnTete, EtatVide, Texte } from '@/composants/ui';
 import { etatPeremption } from '@/domaine/dates';
 import { alimentsDuTiroir, deplacerDansListe, peutSupprimerTiroir, tiroirsDeLAppareil } from '@/domaine/inventaire';
+import { filtrerParRayons, rayonsPresents, type CleRayon, type FiltreRayon } from '@/domaine/rayons';
 import type { Aliment, Appareil, Tiroir } from '@/domaine/types';
 import { choisirTiroir, deplacerAvecAnnulation, prendreAliment, supprimerAvecAnnulation } from '@/services/actions-aliment';
 import { confirmer, demander } from '@/services/dialogue';
 import { useDonnees } from '@/services/donnees-maison';
+import { tic } from '@/services/haptique';
 import { ajouterTiroir, renommerTiroir, reordonnerTiroirs, supprimerTiroir, type Auteur } from '@/services/inventaire';
 import { lancer } from '@/services/retours';
 import { useMoi } from '@/services/session';
@@ -136,6 +138,7 @@ function GrilleTiroirs({ maisonId, appareil, tiroirs, aliments, appareils, tousT
   const insets = useSafeAreaInsets();
   const c = useCouleurs();
   const [glisse, setGlisse] = useState<{ aliment: Aliment; cible: string | null } | null>(null);
+  const [filtre, setFiltre] = useState<ReadonlySet<CleRayon>>(new Set());
   const glisseRef = useRef<{ aliment: Aliment; cible: string | null } | null>(null);
   const x = useSharedValue(0);
   const y = useSharedValue(0);
@@ -227,6 +230,20 @@ function GrilleTiroirs({ maisonId, appareil, tiroirs, aliments, appareils, tousT
     });
   };
 
+  // Filtre par type d'aliment : un rayon qui disparaît de l'appareil ne compte plus.
+  const presents = rayonsPresents(aliments.filter((a) => a.appareilId === appareil.id));
+  const actifs = new Set(presents.map((p) => p.rayon.cle).filter((cle) => filtre.has(cle)));
+  const tiroirsVisibles = actifs.size ? tiroirs.filter((t) => filtrerParRayons(alimentsDuTiroir(aliments, t.id), actifs).length > 0) : tiroirs;
+  const masques = tiroirs.length - tiroirsVisibles.length;
+  const basculerRayon = (cle: CleRayon | null) => {
+    tic();
+    if (!cle) return setFiltre(new Set());
+    const suivant = new Set(actifs);
+    if (suivant.has(cle)) suivant.delete(cle);
+    else suivant.add(cle);
+    setFiltre(suivant);
+  };
+
   async function deplacerVers(a: Aliment) {
     const cible = await choisirTiroir(`Déplacer « ${a.nom} » vers…`, appareils, tousTiroirs, a.tiroirId);
     if (cible) deplacerAvecAnnulation(maisonId, a, cible, tousTiroirs, auteur);
@@ -237,16 +254,17 @@ function GrilleTiroirs({ maisonId, appareil, tiroirs, aliments, appareils, tousT
       {/* Intérieur de l'appareil, éclairé par le haut */}
       <Degrade colors={c.interieur[appareil.type]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} className="absolute inset-0" />
       <Degrade colors={c.lueur} pointerEvents="none" className="absolute inset-x-0 top-0 h-40" />
+      {presents.length > 1 && <FiltreRayons appareil={appareil} presents={presents} actifs={actifs} onBasculer={basculerRayon} />}
       <ScrollView
         scrollEnabled={!glisse}
-        contentContainerClassName="gap-4 px-4 pt-4"
+        contentContainerClassName={`gap-4 px-4 ${presents.length > 1 ? 'pt-1' : 'pt-4'}`}
         contentContainerStyle={{ paddingBottom: insets.bottom + (glisse ? HAUTEUR_CORBEILLE + 48 : 32) }}>
-        {tiroirs.map((t, i) => (
+        {tiroirsVisibles.map((t, i) => (
           <Animated.View key={t.id} entering={FadeInDown.duration(380).delay(70 * i)}>
             <CarteTiroir
               tiroir={t}
               appareil={appareil}
-              contenu={alimentsDuTiroir(aliments, t.id)}
+              contenu={filtrerParRayons(alimentsDuTiroir(aliments, t.id), actifs)}
               enGlisse={glisse?.aliment.id ?? null}
               onAjouter={() => router.push({ pathname: '/aliment/editer', params: { tiroirId: t.id } })}
               onToucher={(a) => prendreAliment(maisonId, a, auteur, () => router.push({ pathname: '/aliment/[id]', params: { id: a.id } }))}
@@ -256,6 +274,17 @@ function GrilleTiroirs({ maisonId, appareil, tiroirs, aliments, appareils, tousT
             />
           </Animated.View>
         ))}
+        {masques > 0 && (
+          <Pressable accessibilityRole="button" onPress={() => basculerRayon(null)} className="flex-row items-center gap-2 px-1 active:opacity-70">
+            <Ionicons name="funnel-outline" size={16} color="#94A3B8" />
+            <Texte ton="discret" className="flex-1 text-sm">
+              {masques > 1 ? `${masques} tiroirs masqués` : '1 tiroir masqué'} par le filtre.{' '}
+              <Texte poids="demi" ton={appareil.type} className="text-sm">
+                Tout afficher
+              </Texte>
+            </Texte>
+          </Pressable>
+        )}
         <View className="flex-row items-center gap-2 px-1 pt-1">
           <Ionicons name="hand-left-outline" size={16} color="#94A3B8" />
           <Texte ton="discret" className="flex-1 text-sm">
@@ -304,6 +333,74 @@ function GrilleTiroirs({ maisonId, appareil, tiroirs, aliments, appareils, tousT
         </>
       )}
     </View>
+  );
+}
+
+/** Puces « Tout · 🥩 Viandes · 🐟 Poissons… » : n'affiche que les types d'aliments choisis. */
+function FiltreRayons({
+  appareil,
+  presents,
+  actifs,
+  onBasculer,
+}: {
+  appareil: Appareil;
+  presents: FiltreRayon[];
+  actifs: ReadonlySet<CleRayon>;
+  onBasculer: (cle: CleRayon | null) => void;
+}) {
+  const total = presents.reduce((n, p) => n + p.nombre, 0);
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} className="grow-0" contentContainerClassName="gap-2 px-4 py-3">
+      <PuceFiltre appareil={appareil} libelle="Tout" nombre={total} actif={actifs.size === 0} onPress={() => onBasculer(null)} />
+      {presents.map(({ rayon, nombre }) => (
+        <PuceFiltre
+          key={rayon.cle}
+          appareil={appareil}
+          emoji={rayon.emoji}
+          libelle={rayon.court}
+          nombre={nombre}
+          actif={actifs.has(rayon.cle)}
+          onPress={() => onBasculer(rayon.cle)}
+        />
+      ))}
+    </ScrollView>
+  );
+}
+
+function PuceFiltre({
+  appareil,
+  emoji,
+  libelle,
+  nombre,
+  actif,
+  onPress,
+}: {
+  appareil: Appareil;
+  emoji?: string;
+  libelle: string;
+  nombre: number;
+  actif: boolean;
+  onPress: () => void;
+}) {
+  const classes = classesAppareil[appareil.type];
+  return (
+    <Pressable
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: actif }}
+      accessibilityLabel={`${libelle}, ${nombre} aliment${nombre > 1 ? 's' : ''}`}
+      hitSlop={4}
+      onPress={onPress}
+      className={`h-10 flex-row items-center gap-1.5 rounded-full border px-3.5 ${
+        actif ? `${classes.bordure} ${classes.pale}` : 'border-vitre-bord bg-carte/80 active:bg-carte'
+      }`}>
+      {emoji && <Text className="text-base">{emoji}</Text>}
+      <Texte poids={actif ? 'demi' : 'moyen'} ton={actif ? appareil.type : 'encre'} className="text-sm">
+        {libelle}
+      </Texte>
+      <Texte ton={actif ? appareil.type : 'discret'} className="text-xs">
+        {nombre}
+      </Texte>
+    </Pressable>
   );
 }
 
