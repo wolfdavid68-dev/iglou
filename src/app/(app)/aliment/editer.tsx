@@ -124,7 +124,7 @@ function Formulaire({ existant, tiroirInitial, libre, file }: { existant?: Alime
 
   const ajouterAExistant = (cible: Aliment) => {
     const nouveau = ajouterALExistant(cible, stock.quantite);
-    lancer(modifierAliment(maisonId, cible.id, nouveau, auteur));
+    lancer(modifierAliment(maisonId, cible.id, nouveau));
     terminer();
   };
 
@@ -148,7 +148,7 @@ function Formulaire({ existant, tiroirInitial, libre, file }: { existant?: Alime
     };
 
     if (existant) {
-      lancer(modifierAliment(maisonId, existant.id, { ...champs, tiroirId: tiroir.id, appareilId: tiroir.appareilId }, auteur));
+      lancer(modifierAliment(maisonId, existant.id, { ...champs, tiroirId: tiroir.id, appareilId: tiroir.appareilId }));
       router.back();
       return;
     }

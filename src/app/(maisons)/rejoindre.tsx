@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { EcranFormulaire } from '@/composants/formulaire';
 import { Bouton, Champ, EnTete, Texte } from '@/composants/ui';
 import { LONGUEUR_CODE, normaliserCode } from '@/domaine/invitation';
-import { messageErreur } from '@/services/firebase';
+import { messageErreur } from '@/services/erreurs';
 import { rejoindreMaison, useMaisons } from '@/services/maisons';
 import { afficherMessage } from '@/services/retours';
 import { useMoi } from '@/services/session';
@@ -12,7 +12,7 @@ import { useMoi } from '@/services/session';
 export default function RejoindreMaison() {
   const moi = useMoi();
   const params = useLocalSearchParams<{ code?: string }>();
-  const { adhesions, choisirMaison } = useMaisons();
+  const { choisirMaison } = useMaisons();
   const [code, setCode] = useState(params.code ? normaliserCode(params.code) : '');
   const [erreur, setErreur] = useState<string | null>(null);
   const [envoi, setEnvoi] = useState(false);
@@ -21,7 +21,7 @@ export default function RejoindreMaison() {
     setErreur(null);
     setEnvoi(true);
     try {
-      const r = await rejoindreMaison(code, moi.uid, moi.prenom, adhesions);
+      const r = await rejoindreMaison(code, moi.prenom);
       if (!r.ok) {
         setErreur(r.message);
         setEnvoi(false);

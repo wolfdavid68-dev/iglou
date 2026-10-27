@@ -41,7 +41,7 @@ export default function EcranCourses() {
   const panier = articles.filter((a) => a.dansPanier).length;
 
   const basculer = (a: Article) => {
-    if (a.genre === 'aliment') lancer(modifierAliment(maisonId, a.id, { dansPanier: !a.dansPanier }, auteur));
+    if (a.genre === 'aliment') lancer(modifierAliment(maisonId, a.id, { dansPanier: !a.dansPanier }));
     else lancer(modifierLibre(maisonId, a.id, { dansPanier: !a.dansPanier }));
   };
 
@@ -62,7 +62,7 @@ export default function EcranCourses() {
     ].filter(Boolean);
     const ok = await confirmer('Ranger les courses ?', details.join(' '), 'Ranger');
     if (!ok) return;
-    lancer(rangerCourses(maisonId, aliments, rangeables ? [] : libres, auteur));
+    lancer(rangerCourses(maisonId, aliments, rangeables ? [] : libres));
     if (rangeables && libresCoches.length) {
       router.push({ pathname: '/aliment/editer', params: { libres: libresCoches.map((l) => l.id).join(','), total: String(libresCoches.length) } });
     } else afficherMessage('Courses rangées ✔');
@@ -167,7 +167,7 @@ function AjoutLibre({ maisonId, auteur, libres }: { maisonId: string; auteur: Au
       lancer(modifierLibre(maisonId, existant.id, { quantite: existant.quantite + 1, dansPanier: false }));
       afficherMessage(`${existant.nom} : ${formaterQuantite(existant.quantite + 1, existant.unite)}`);
     } else {
-      lancer(ajouterLibre(maisonId, propre, 1, 'pièce', auteur));
+      lancer(ajouterLibre(maisonId, propre, 1, 'pièce'));
     }
     setNom('');
     setErreur(null);
@@ -325,7 +325,7 @@ function FeuilleQuantite({
   const valider = () => {
     try {
       if (a.genre === 'aliment') {
-        lancer(modifierAliment(maisonId, a.id, { achatQuantite: ajusterAchat(a.aliment, q), dansPanier: true }, auteur));
+        lancer(modifierAliment(maisonId, a.id, { achatQuantite: ajusterAchat(a.aliment, q), dansPanier: true }));
       } else {
         lancer(modifierLibre(maisonId, a.id, { quantite: q }));
       }
@@ -337,7 +337,7 @@ function FeuilleQuantite({
 
   const reinitialiser = () => {
     if (a.genre !== 'aliment') return;
-    lancer(modifierAliment(maisonId, a.id, { achatQuantite: null }, auteur));
+    lancer(modifierAliment(maisonId, a.id, { achatQuantite: null }));
     onFermer();
   };
 

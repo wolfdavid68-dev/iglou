@@ -178,9 +178,9 @@ export function resumeFichier(f: FichierExport): { appareils: number; tiroirs: n
 }
 
 /* ----------------------------------------------------------------------------
- * Plan d'import : liste d'opérations indépendante de Firestore, appliquée
- * ensuite par lots. Les identifiants des nouveaux documents sont fournis par
- * `nouvelId` (ids Firestore côté app, compteur dans les tests).
+ * Plan d'import : liste d'opérations indépendante du serveur, appliquée
+ * ensuite en une seule transaction. Les identifiants des nouveaux documents sont fournis par
+ * `nouvelId` (ids aléatoires côté app, compteur dans les tests).
  * -------------------------------------------------------------------------- */
 
 export type ModeImport = 'remplacer' | 'fusionner';
@@ -247,11 +247,4 @@ export function planImport(mode: ModeImport, actuel: Inventaire, fichier: Fichie
   }
 
   return ops;
-}
-
-/** Découpe en lots (Firestore : 500 écritures max par lot). */
-export function enLots<T>(elements: T[], taille = 450): T[][] {
-  const lots: T[][] = [];
-  for (let i = 0; i < elements.length; i += taille) lots.push(elements.slice(i, i + taille));
-  return lots;
 }

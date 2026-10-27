@@ -1,4 +1,4 @@
-import { construireExport, enLots, nomFichierExport, planImport, resumeFichier, validerImport, type Inventaire } from '../import-export';
+import { construireExport, nomFichierExport, planImport, resumeFichier, validerImport, type Inventaire } from '../import-export';
 import { aliment, appareil, libre, tiroir } from './fabriques';
 
 const inventaire: Inventaire = {
@@ -96,9 +96,4 @@ describe("plan d'import", () => {
       { op: 'creerTiroir', id: 'n3', appareilId: 'n2', nom: 'Bas', ordre: 0 },
     ]);
   });
-});
-
-test('découpage en lots Firestore', () => {
-  const lots = enLots(Array.from({ length: 1000 }, (_, i) => i));
-  expect(lots.map((l) => l.length)).toEqual([450, 450, 100]);
 });

@@ -14,18 +14,15 @@ import {
   type LigneRecette,
 } from '@/domaine/recettes';
 import { useDonnees } from '@/services/donnees-maison';
-import { ajouterLibres, type Auteur } from '@/services/inventaire';
+import { ajouterLibres } from '@/services/inventaire';
 import { afficherMessage, lancer } from '@/services/retours';
-import { useMoi } from '@/services/session';
 import { useCouleurs } from '@/theme';
 
 /** Fiche d'une recette : ce qu'on a, ce qui manque, et les étapes. */
 export default function FicheRecette() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { maisonId, appareils, tiroirs, aliments, libres } = useDonnees();
-  const moi = useMoi();
   const c = useCouleurs();
-  const auteur: Auteur = { uid: moi.uid, prenom: moi.prenom };
 
   const recette = trouverRecette(id);
   if (!recette) {
@@ -47,7 +44,7 @@ export default function FicheRecette() {
   };
 
   const ajouterAuxCourses = () => {
-    lancer(ajouterLibres(maisonId, aAjouter.map((i) => i.nom), auteur));
+    lancer(ajouterLibres(maisonId, aAjouter.map((i) => i.nom)));
     afficherMessage(`${aAjouter.length} article${aAjouter.length > 1 ? 's' : ''} ajouté${aAjouter.length > 1 ? 's' : ''} aux courses ✔`);
   };
 

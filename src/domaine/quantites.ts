@@ -13,7 +13,7 @@ export interface Stock {
  * - une baisse ne touche jamais le maximum ;
  * - seul `modifierMaximum` (action explicite) peut baisser le maximum.
  *
- * Quantité et maximum sont toujours écrits ensemble, et les règles Firestore
+ * Quantité et maximum sont toujours écrits ensemble, et le serveur (convex/lib.ts)
  * refusent toute écriture où `quantiteMax < quantite`.
  */
 export function stockInitial(quantite: number): Stock {
