@@ -16,8 +16,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "biz.iglou",
-      "googleServicesFile": "./google-services.json"
+      "package": "biz.iglou"
     },
     "web": {
       "output": "static",
@@ -36,10 +35,9 @@
           }
         }
       ],
-      "@react-native-firebase/app",
-      "@react-native-firebase/auth",
       "expo-sharing",
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -116,8 +116,7 @@ export default function EcranReglages() {
     if (!mdp) return;
     setOccupe('compte');
     try {
-      // Une fois le mot de passe accepté, on quitte la maison ouverte avant d'effacer quoi que ce soit.
-      await supprimerCompte(mdp, adhesions, () => choisirMaison(null));
+      await supprimerCompte(moi.uid, mdp, adhesions, () => choisirMaison(null));
       afficherMessage('Ton compte a été supprimé.');
     } catch (e) {
       signalerErreur(e);

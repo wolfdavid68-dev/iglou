@@ -7,10 +7,13 @@
  *
  * La clé est un compte de service Firebase (console Firebase → Paramètres du
  * projet → Comptes de service → Générer une nouvelle clé privée). À garder
- * hors du dépôt et à supprimer après le transfert. Firestore n'est que lu.
+ * hors du dépôt et à supprimer après le transfert. Firebase n'est que lu.
  *
- * Les ids Firestore sont conservés (champ `id`) et les uid Firebase aussi :
- * comptes, liens et maison active mémorisée restent valides.
+ * Transférés : toutes les données Firestore et les comptes Firebase
+ * Authentication (e-mail, prénom, hash du mot de passe). Les ids Firestore et
+ * les uid Firebase sont conservés : liens, maison mémorisée et mots de passe
+ * restent valides. Pour vérifier les anciens mots de passe, Convex a besoin des
+ * paramètres de hachage du projet (variables FIREBASE_SCRYPT_*, voir README).
  */
 
 import type { CollectionReference } from 'firebase-admin/firestore';
@@ -32,13 +35,35 @@ export interface MaisonSource extends DocSource {
   consommations: DocSource[];
 }
 
+/** Compte Firebase Authentication (listUsers du SDK admin). */
+export interface CompteSource {
+  uid: string;
+  email?: string;
+  displayName?: string;
+  passwordHash?: string;
+  passwordSalt?: string;
+  emailVerified?: boolean;
+}
+
 export interface SourceFirestore {
   profils: DocSource[];
   maisons: MaisonSource[];
   signalements: DocSource[];
+  comptes: CompteSource[];
 }
 
-export const TABLES = ['profils', 'maisons', 'membres', 'appareils', 'tiroirs', 'aliments', 'coursesLibres', 'consommations', 'signalements'] as const;
+export const TABLES = [
+  'profils',
+  'maisons',
+  'membres',
+  'appareils',
+  'tiroirs',
+  'aliments',
+  'coursesLibres',
+  'consommations',
+  'signalements',
+  'transfertComptes',
+] as const;
 export type Table = (typeof TABLES)[number];
 export type Tables = Record<Table, Record<string, unknown>[]>;
 
@@ -168,6 +193,21 @@ export function convertir(src: SourceFirestore, maintenant: number): { tables: T
     }
   }
 
+  for (const c of src.comptes) {
+    if (!c.email) {
+      ignores.push(`comptes/${c.uid} (sans e-mail)`);
+      continue;
+    }
+    tables.transfertComptes.push({
+      uid: c.uid,
+      email: c.email.trim().toLowerCase(),
+      nom: c.displayName ? c.displayName.trim().slice(0, 40) || null : null,
+      hash: c.passwordHash ?? null,
+      sel: c.passwordSalt ?? null,
+      emailVerifie: c.emailVerified === true,
+    });
+  }
+
   for (const s of src.signalements) {
     tables.signalements.push({
       uid: texte(s.data.uid, '', 128),
@@ -202,6 +242,7 @@ export function versMs(v: unknown): unknown {
 async function lireFirestore(cle: string | undefined): Promise<SourceFirestore> {
   const { initializeApp, cert, applicationDefault } = await import('firebase-admin/app');
   const { getFirestore } = await import('firebase-admin/firestore');
+  const { getAuth } = await import('firebase-admin/auth');
   const { readFileSync } = await import('node:fs');
   initializeApp({ credential: cle ? cert(JSON.parse(readFileSync(cle, 'utf8'))) : applicationDefault(), projectId: PROJET_FIREBASE });
   const db = getFirestore();
@@ -221,7 +262,15 @@ async function lireFirestore(cle: string | undefined): Promise<SourceFirestore> 
       consommations: await lire(ref.collection('consommations')),
     });
   }
-  return { profils: await lire(db.collection('profils')), maisons, signalements: await lire(db.collection('signalements')) };
+  const comptes: CompteSource[] = [];
+  let page: string | undefined;
+  do {
+    const r = await getAuth().listUsers(1000, page);
+    comptes.push(...r.users.map((u) => ({ uid: u.uid, email: u.email, displayName: u.displayName, passwordHash: u.passwordHash, passwordSalt: u.passwordSalt, emailVerified: u.emailVerified })));
+    page = r.pageToken;
+  } while (page);
+
+  return { profils: await lire(db.collection('profils')), maisons, signalements: await lire(db.collection('signalements')), comptes };
 }
 
 async function principal(args: string[]) {
@@ -263,6 +312,21 @@ async function principal(args: string[]) {
       console.error(`Échec de l'import de ${t}. Les tables précédentes sont importées ; relancer remplace tout à nouveau.`);
       process.exit(1);
     }
+  }
+  // Les comptes passent par une table de transit : création des utilisateurs Convex Auth, par lots.
+  for (;;) {
+    const r = spawnSync('npx', ['convex', 'run', ...cible, 'transfert:creerComptes', '{}'], {
+      encoding: 'utf8',
+      shell: process.platform === 'win32',
+    });
+    if (r.status !== 0) {
+      console.error(r.stderr || r.stdout);
+      console.error('Échec de la création des comptes. Relancer le script reprend là où il en était.');
+      process.exit(1);
+    }
+    const sortie = r.stdout.trim();
+    console.log(`Comptes : ${sortie.replace(/\s+/g, ' ')}`);
+    if (/"?termine"?\s*:\s*true/.test(sortie)) break;
   }
   console.log('Transfert terminé ✔');
 }

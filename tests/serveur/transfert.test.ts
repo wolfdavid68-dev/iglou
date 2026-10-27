@@ -2,7 +2,7 @@
 import { convexTest } from 'convex-test';
 import { expect, test } from 'vitest';
 
-import { api } from '../../convex/_generated/api';
+import { api, internal } from '../../convex/_generated/api';
 import schema from '../../convex/schema';
 import { convertir, TABLES, versMs, type SourceFirestore } from '../../scripts/transfert-convex.mts';
 
@@ -45,6 +45,11 @@ const source: SourceFirestore = {
     // Code d'invitation en double : la seconde maison en reçoit un neuf.
     { id: 'autreMaison', data: { nom: 'Bis', codeInvitation: 'ABC123', createdBy: 'bob', createdAt: 1 }, ...vide },
   ],
+  comptes: [
+    { uid: 'alice', email: 'Alice@Exemple.fr', displayName: 'Alice', passwordHash: 'aGFzaA==', passwordSalt: 'c2Vs', emailVerified: true },
+    { uid: 'bob', email: 'bob@exemple.fr', passwordHash: 'aGFzaDI=', passwordSalt: 'c2VsMg==' },
+    { uid: 'fantome' },
+  ],
   signalements: [{ id: 's1', data: { uid: 'bob', email: 'bob@exemple.fr', prenom: 'Bob', maisonId: 'x', message: 'Bug', appareil: null, systeme: null, versionApp: '1.0.0', createdAt: 5 } }],
 };
 
@@ -55,7 +60,7 @@ test('les horodatages Firestore deviennent des millisecondes, partout', () => {
 
 test('Firestore converti : conforme au schéma, ids et comptes conservés, lisible par les membres', async () => {
   const { tables, ignores } = convertir(source, 9999);
-  expect(ignores).toEqual([]);
+  expect(ignores).toEqual(['comptes/fantome (sans e-mail)']);
 
   const t = convexTest(schema, modules);
   // `insert` valide chaque ligne contre le schéma, comme `npx convex import`.
@@ -63,10 +68,19 @@ test('Firestore converti : conforme au schéma, ids et comptes conservés, lisib
     for (const table of TABLES) for (const ligne of tables[table]) await ctx.db.insert(table, ligne as never);
   });
 
-  const alice = t.withIdentity({ subject: 'alice' });
-  const bob = t.withIdentity({ subject: 'bob' });
+  // Comptes : création des utilisateurs Convex Auth, idempotente.
+  expect(await t.mutation(internal.transfert.creerComptes, {})).toEqual({ crees: 2, termine: true });
+  expect(await t.mutation(internal.transfert.creerComptes, {})).toEqual({ crees: 0, termine: true });
+  const comptes = await t.run((ctx) => ctx.db.query('authAccounts').collect());
+  expect(comptes.map((c) => [c.providerAccountId, c.secret])).toEqual([
+    ['alice@exemple.fr', 'firebase-scrypt$aGFzaA==$c2Vs'],
+    ['bob@exemple.fr', 'firebase-scrypt$aGFzaDI=$c2VsMg=='],
+  ]);
+  const identite = (userId: string) => t.withIdentity({ subject: `${userId}|session` });
+  const alice = identite(comptes[0].userId);
+  const bob = identite(comptes[1].userId);
   expect(await alice.query(api.maisons.mesAdhesions, {})).toEqual([{ maisonId: 'Mais0nFirestore12345', nom: 'Chez nous', role: 'proprietaire' }]);
-  expect(await alice.query(api.profils.moi, {})).toEqual({ uid: 'alice', prenom: 'Alice' });
+  expect(await alice.query(api.profils.moi, {})).toEqual({ uid: 'alice', email: 'alice@exemple.fr', prenom: 'Alice' });
 
   const d = (await bob.query(api.donnees.maison, { maisonId: 'Mais0nFirestore12345' }))!;
   expect(d.membres.map((m) => [m.uid, m.role, m.joinedAt])).toEqual([

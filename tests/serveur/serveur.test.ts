@@ -2,7 +2,7 @@
 import { convexTest } from 'convex-test';
 import { describe, expect, test } from 'vitest';
 
-import { api } from '../../convex/_generated/api';
+import { api, internal } from '../../convex/_generated/api';
 import schema from '../../convex/schema';
 import type { OperationInventaire } from '../../convex/validateurs';
 
@@ -12,17 +12,23 @@ import type { OperationInventaire } from '../../convex/validateurs';
  */
 const modules = import.meta.glob('../../convex/**/*.*s');
 
-function monde() {
-  const t = convexTest(schema, modules);
-  return {
-    t,
-    alice: t.withIdentity({ subject: 'alice', email: 'alice@exemple.fr' }),
-    bob: t.withIdentity({ subject: 'bob', email: 'bob@exemple.fr' }),
-    chloe: t.withIdentity({ subject: 'chloe', email: 'chloe@exemple.fr' }),
-  };
+type Test = ReturnType<typeof convexTest>;
+
+/**
+ * Utilisateur connecté (comme après Convex Auth : sujet `userId|sessionId`).
+ * Son `uid` est forcé (comme pour un compte transféré de Firebase) pour des tests lisibles.
+ */
+async function connecte(t: Test, uid: string) {
+  const userId = await t.run((ctx) => ctx.db.insert('users', { email: `${uid}@exemple.fr`, uid }));
+  return t.withIdentity({ subject: `${userId}|session` });
 }
 
-type Utilisateur = ReturnType<typeof monde>['alice'];
+async function monde() {
+  const t = convexTest(schema, modules);
+  return { t, alice: await connecte(t, 'alice'), bob: await connecte(t, 'bob'), chloe: await connecte(t, 'chloe') };
+}
+
+type Utilisateur = Awaited<ReturnType<typeof monde>>['alice'];
 
 async function maisonDe(u: Utilisateur, id = 'maison1', code = 'ABC123') {
   await u.mutation(api.maisons.creer, { id, nom: 'Chez nous', code, prenom: 'Alice' });
@@ -54,9 +60,11 @@ const frigo: OperationInventaire[] = [
 
 describe('connexion', () => {
   test('sans jeton : rien à lire, aucune écriture', async () => {
-    const { t, alice } = monde();
+    const { t, alice } = await monde();
     await maisonDe(alice);
     expect(await t.query(api.maisons.mesAdhesions, {})).toBeNull();
+    // Jeton dont l'utilisateur n'existe pas (ou plus) : traité comme non connecté.
+    expect(await t.withIdentity({ subject: 'inconnu|s' }).query(api.maisons.mesAdhesions, {})).toBeNull();
     expect(await t.query(api.donnees.maison, { maisonId: 'maison1' })).toBeNull();
     await expect(t.mutation(api.maisons.creer, { id: 'x', nom: 'X', code: 'XYZ999', prenom: 'X' })).rejects.toThrow(/unauthenticated/);
   });
@@ -64,7 +72,7 @@ describe('connexion', () => {
 
 describe('maisons', () => {
   test('créer : je suis propriétaire et je vois la maison', async () => {
-    const { alice } = monde();
+    const { alice } = await monde();
     await maisonDe(alice);
     expect(await alice.query(api.maisons.mesAdhesions, {})).toEqual([{ maisonId: 'maison1', nom: 'Chez nous', role: 'proprietaire' }]);
     const d = await alice.query(api.donnees.maison, { maisonId: 'maison1' });
@@ -73,14 +81,14 @@ describe('maisons', () => {
   });
 
   test('code invalide ou déjà pris : refusé', async () => {
-    const { alice, bob } = monde();
+    const { alice, bob } = await monde();
     await maisonDe(alice);
     await expect(bob.mutation(api.maisons.creer, { id: 'm2', nom: 'B', code: 'ABC123', prenom: 'Bob' })).rejects.toThrow(/already-exists/);
     await expect(bob.mutation(api.maisons.creer, { id: 'm2', nom: 'B', code: 'abc', prenom: 'Bob' })).rejects.toThrow(/invalid-argument/);
   });
 
   test("un non-membre ne lit ni n'écrit rien", async () => {
-    const { alice, bob } = monde();
+    const { alice, bob } = await monde();
     await maisonDe(alice);
     expect(await bob.query(api.donnees.maison, { maisonId: 'maison1' })).toBeNull();
     expect(await bob.query(api.consommations.recentes, { maisonId: 'maison1', depuis: 0 })).toEqual([]);
@@ -89,7 +97,7 @@ describe('maisons', () => {
   });
 
   test('rejoindre avec le code, une seule fois ; mauvais code = null', async () => {
-    const { alice, bob } = monde();
+    const { alice, bob } = await monde();
     await maisonDe(alice);
     expect(await bob.mutation(api.maisons.rejoindre, { code: 'ZZZ999', prenom: 'Bob' })).toBeNull();
     expect(await bob.mutation(api.maisons.rejoindre, { code: 'ABC123', prenom: 'Bob' })).toEqual({ maisonId: 'maison1', dejaMembre: false });
@@ -99,7 +107,7 @@ describe('maisons', () => {
   });
 
   test("nouveau code : l'ancien ne marche plus ; seul le propriétaire peut le changer", async () => {
-    const { alice, bob, chloe } = monde();
+    const { alice, bob, chloe } = await monde();
     await maisonDe(alice);
     await bob.mutation(api.maisons.rejoindre, { code: 'ABC123', prenom: 'Bob' });
     await expect(bob.mutation(api.maisons.regenererCode, { maisonId: 'maison1', code: 'BOB000' })).rejects.toThrow(/permission-denied/);
@@ -109,7 +117,7 @@ describe('maisons', () => {
   });
 
   test('quitter, retirer : le propriétaire ne quitte pas, seul lui retire', async () => {
-    const { alice, bob, chloe } = monde();
+    const { alice, bob, chloe } = await monde();
     await maisonDe(alice);
     await bob.mutation(api.maisons.rejoindre, { code: 'ABC123', prenom: 'Bob' });
     await chloe.mutation(api.maisons.rejoindre, { code: 'ABC123', prenom: 'Chloé' });
@@ -122,7 +130,7 @@ describe('maisons', () => {
   });
 
   test('supprimer : propriétaire seulement, tout disparaît', async () => {
-    const { t, alice, bob } = monde();
+    const { t, alice, bob } = await monde();
     await maisonDe(alice);
     await bob.mutation(api.maisons.rejoindre, { code: 'ABC123', prenom: 'Bob' });
     await alice.mutation(api.inventaire.appliquer, { maisonId: 'maison1', operations: [...frigo, aliment('a1')] });
@@ -137,7 +145,7 @@ describe('maisons', () => {
 
 describe('inventaire', () => {
   test("créer, modifier, déplacer : l'auteur et la date d'ajout ne changent pas", async () => {
-    const { alice, bob } = monde();
+    const { alice, bob } = await monde();
     await maisonDe(alice);
     await bob.mutation(api.maisons.rejoindre, { code: 'ABC123', prenom: 'Bob' });
     await alice.mutation(api.inventaire.appliquer, { maisonId: 'maison1', operations: [...frigo, aliment('a1')] });
@@ -151,7 +159,7 @@ describe('inventaire', () => {
   });
 
   test('règle du maximum : jamais un stock plein inférieur à la quantité', async () => {
-    const { alice } = monde();
+    const { alice } = await monde();
     await maisonDe(alice);
     await expect(
       alice.mutation(api.inventaire.appliquer, { maisonId: 'maison1', operations: [...frigo, aliment('a1', { quantite: 8, quantiteMax: 6 })] }),
@@ -163,7 +171,7 @@ describe('inventaire', () => {
   });
 
   test('tout ou rien : une opération refusée annule tout le lot', async () => {
-    const { alice } = monde();
+    const { alice } = await monde();
     await maisonDe(alice);
     await expect(
       alice.mutation(api.inventaire.appliquer, {
@@ -176,7 +184,7 @@ describe('inventaire', () => {
   });
 
   test("les ids d'une autre maison sont introuvables", async () => {
-    const { alice, bob } = monde();
+    const { alice, bob } = await monde();
     await maisonDe(alice);
     await alice.mutation(api.inventaire.appliquer, { maisonId: 'maison1', operations: [...frigo, aliment('a1')] });
     await maisonDe(bob, 'maison2', 'BOB222');
@@ -188,7 +196,7 @@ describe('inventaire', () => {
   });
 
   test('restauration après suppression : même id, et rien si déjà revenu', async () => {
-    const { alice } = monde();
+    const { alice } = await monde();
     await maisonDe(alice);
     await alice.mutation(api.inventaire.appliquer, { maisonId: 'maison1', operations: [...frigo, aliment('a1')] });
     const origine = (await alice.query(api.donnees.maison, { maisonId: 'maison1' }))!.aliments[0];
@@ -201,7 +209,7 @@ describe('inventaire', () => {
   });
 
   test('supprimer un appareil emporte ses tiroirs et leurs aliments', async () => {
-    const { alice } = monde();
+    const { alice } = await monde();
     await maisonDe(alice);
     await alice.mutation(api.inventaire.appliquer, {
       maisonId: 'maison1',
@@ -221,7 +229,7 @@ describe('inventaire', () => {
   });
 
   test("sorties de stock : auteur et date fixés par le serveur, lues par fenêtre", async () => {
-    const { alice } = monde();
+    const { alice } = await monde();
     await maisonDe(alice);
     await alice.mutation(api.inventaire.appliquer, {
       maisonId: 'maison1',
@@ -233,7 +241,7 @@ describe('inventaire', () => {
   });
 
   test('courses libres', async () => {
-    const { alice } = monde();
+    const { alice } = await monde();
     await maisonDe(alice);
     await alice.mutation(api.inventaire.appliquer, { maisonId: 'maison1', operations: [{ op: 'creerLibre', id: 'l1', nom: ' Pain ', quantite: 1, unite: 'pièce' }] });
     await alice.mutation(api.inventaire.appliquer, { maisonId: 'maison1', operations: [{ op: 'majLibre', id: 'l1', champs: { dansPanier: true } }] });
@@ -248,28 +256,31 @@ describe('inventaire', () => {
 
 describe('profil et compte', () => {
   test('changer de prénom : profil et toutes mes maisons', async () => {
-    const { alice } = monde();
+    const { alice } = await monde();
     await maisonDe(alice);
     await maisonDe(alice, 'maison2', 'DEF456');
-    await alice.mutation(api.profils.assurer, { prenom: 'Alice' });
     await alice.mutation(api.profils.changerPrenom, { prenom: 'Alix' });
-    expect(await alice.query(api.profils.moi, {})).toEqual({ uid: 'alice', prenom: 'Alix' });
+    expect(await alice.query(api.profils.moi, {})).toEqual({ uid: 'alice', email: 'alice@exemple.fr', prenom: 'Alix' });
     for (const maisonId of ['maison1', 'maison2']) {
       expect((await alice.query(api.donnees.maison, { maisonId }))!.membres[0].prenom).toBe('Alix');
     }
   });
 
   test('supprimer mes données : la maison partagée passe au plus ancien, la maison solo disparaît', async () => {
-    const { t, alice, bob, chloe } = monde();
+    const { t, alice, bob, chloe } = await monde();
     await maisonDe(alice);
     await maisonDe(alice, 'solo', 'SOL000');
-    await alice.mutation(api.profils.assurer, { prenom: 'Alice' });
+    await alice.mutation(api.profils.changerPrenom, { prenom: 'Alice' });
     await bob.mutation(api.maisons.rejoindre, { code: 'ABC123', prenom: 'Bob' });
     await chloe.mutation(api.maisons.rejoindre, { code: 'ABC123', prenom: 'Chloé' });
-    await alice.mutation(api.compte.supprimerDonnees, {});
+    const userId = (await t.run((ctx) => ctx.db.query('users').withIndex('par_uid', (q) => q.eq('uid', 'alice')).first()))!._id;
+    await t.mutation(internal.compte.effacer, { userId, uid: 'alice' });
 
-    expect(await alice.query(api.maisons.mesAdhesions, {})).toEqual([]);
+    // Compte effacé : plus aucune identité, plus d'adhésion, plus de profil.
     expect(await alice.query(api.profils.moi, {})).toBeNull();
+    expect(await t.run((ctx) => ctx.db.get(userId))).toBeNull();
+    expect(await t.run((ctx) => ctx.db.query('membres').withIndex('par_uid', (q) => q.eq('uid', 'alice')).collect())).toEqual([]);
+    expect(await t.run((ctx) => ctx.db.query('profils').collect())).toEqual([]);
     expect(await bob.query(api.maisons.mesAdhesions, {})).toEqual([{ maisonId: 'maison1', nom: 'Chez nous', role: 'proprietaire' }]);
     expect(await chloe.query(api.maisons.mesAdhesions, {})).toEqual([{ maisonId: 'maison1', nom: 'Chez nous', role: 'membre' }]);
     const solo = await t.run((ctx) => ctx.db.query('maisons').withIndex('par_id', (q) => q.eq('id', 'solo')).first());
@@ -277,7 +288,7 @@ describe('profil et compte', () => {
   });
 
   test("signalement : l'uid et l'e-mail viennent du jeton, pas de l'app", async () => {
-    const { t, alice } = monde();
+    const { t, alice } = await monde();
     await alice.mutation(api.signalements.envoyer, {
       prenom: 'Alice',
       maisonId: 'maison1',

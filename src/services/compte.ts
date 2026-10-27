@@ -1,29 +1,29 @@
 import { api } from '../../convex/_generated/api';
-import { deleteUser, EmailAuthProvider, reauthenticateWithCredential } from './auth-firebase';
 import { CACHE_ADHESIONS, cacheMaison, effacerCache } from './cache';
 import { convex } from './convex';
-import { auth } from './firebase';
+import { codeErreur } from './erreurs';
 import type { Adhesion } from './maisons';
+import { deconnecter } from './session';
 
 /**
- * Supprime définitivement le compte connecté (exigence du Play Store) :
- * - maison partagée dont je suis propriétaire : je passe la main au plus
- *   ancien membre, la maison et son inventaire restent aux autres ;
- * - maison où je suis seul : elle est supprimée avec tout son contenu ;
+ * Supprime définitivement le compte connecté (exigence du Play Store). Le
+ * serveur vérifie d'abord le mot de passe (rien n'est effacé s'il est faux),
+ * puis, en une transaction :
+ * - maison partagée dont je suis propriétaire : le plus ancien membre le devient ;
+ * - maison où je suis seul : supprimée avec tout son contenu ;
  * - maison où je suis simple membre : je la quitte ;
- * puis mon profil (tout cela côté serveur, en une transaction), puis le
- * compte Firebase lui-même.
+ * puis mon profil et mon compte.
  *
- * Le mot de passe est redemandé d'abord : Firebase l'exige pour supprimer un
- * compte, et rien n'est effacé si le mot de passe est faux. `apresVerification`
- * est appelé une fois le mot de passe accepté, juste avant le premier effacement.
+ * `apresSuppression` est appelé dès que le serveur a tout effacé.
  */
-export async function supprimerCompte(motDePasse: string, adhesions: Adhesion[], apresVerification?: () => void) {
-  const user = auth.currentUser;
-  if (!user?.email) throw new Error('Aucun utilisateur connecté.');
-  await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, motDePasse));
-  apresVerification?.();
-  await convex.mutation(api.compte.supprimerDonnees, {});
-  effacerCache(user.uid, [CACHE_ADHESIONS, ...adhesions.map((a) => cacheMaison(a.maisonId))]);
-  await deleteUser(user);
+export async function supprimerCompte(uid: string, motDePasse: string, adhesions: Adhesion[], apresSuppression?: () => void) {
+  try {
+    await convex.action(api.compte.supprimer, { motDePasse });
+  } catch (e) {
+    throw Object.assign(new Error(codeErreur(e)), { code: codeErreur(e), cause: e });
+  }
+  apresSuppression?.();
+  effacerCache(uid, [CACHE_ADHESIONS, ...adhesions.map((a) => cacheMaison(a.maisonId))]);
+  // La session n'existe déjà plus côté serveur : on efface simplement les jetons locaux.
+  await deconnecter().catch(() => {});
 }

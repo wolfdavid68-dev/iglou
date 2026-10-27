@@ -19,12 +19,21 @@ type Ctx = QueryCtx | MutationCtx;
 export interface Moi {
   uid: string;
   email: string;
+  /** Nom donné à l'inscription (ou nom affiché Firebase pour un compte transféré). */
+  nom: string;
 }
 
-/** Utilisateur Firebase connecté (uid = `sub` du jeton), ou null. */
+/**
+ * Utilisateur connecté, ou null. `uid` : uid Firebase d'origine pour un
+ * compte transféré, sinon l'id de son document `users`.
+ */
 export async function identite(ctx: Ctx): Promise<Moi | null> {
   const i = await ctx.auth.getUserIdentity();
-  return i ? { uid: i.subject, email: i.email ?? '' } : null;
+  if (!i) return null;
+  const userId = ctx.db.normalizeId('users', i.subject.split('|')[0]);
+  const user = userId ? await ctx.db.get(userId) : null;
+  if (!user) return null;
+  return { uid: user.uid ?? user._id, email: user.email ?? '', nom: user.name ?? '' };
 }
 
 export async function exigerIdentite(ctx: Ctx): Promise<Moi> {

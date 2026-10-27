@@ -1,3 +1,4 @@
+import { authTables } from '@convex-dev/auth/server';
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 
@@ -10,9 +11,28 @@ import { vRole, vTypeAppareil, vUnite } from './validateurs';
  * Toutes les données d'une maison portent `maisonId` ; les index commencent par
  * lui, si bien qu'une lecture ne sort jamais de la maison demandée.
  *
- * Les comptes restent sur Firebase Authentication : `uid` = uid Firebase.
+ * Comptes : Convex Auth (tables `auth*` et `users`). `uid` désigne un
+ * utilisateur dans les données : l'uid Firebase d'origine pour les comptes
+ * transférés (champ `users.uid`), l'id du document `users` pour les nouveaux.
  */
 export default defineSchema({
+  ...authTables,
+
+  users: defineTable({
+    name: v.optional(v.string()),
+    image: v.optional(v.string()),
+    email: v.optional(v.string()),
+    emailVerificationTime: v.optional(v.number()),
+    phone: v.optional(v.string()),
+    phoneVerificationTime: v.optional(v.number()),
+    isAnonymous: v.optional(v.boolean()),
+    /** Uid Firebase d'un compte transféré (absent pour les nouveaux comptes). */
+    uid: v.optional(v.string()),
+  })
+    .index('email', ['email'])
+    .index('phone', ['phone'])
+    .index('par_uid', ['uid']),
+
   profils: defineTable({
     uid: v.string(),
     prenom: v.string(),
@@ -112,5 +132,15 @@ export default defineSchema({
     systeme: v.union(v.string(), v.null()),
     versionApp: v.union(v.string(), v.null()),
     createdAt: v.number(),
+  }),
+
+  /** Transit du transfert des comptes Firebase (vidé une fois les comptes créés). */
+  transfertComptes: defineTable({
+    uid: v.string(),
+    email: v.string(),
+    nom: v.union(v.string(), v.null()),
+    hash: v.union(v.string(), v.null()),
+    sel: v.union(v.string(), v.null()),
+    emailVerifie: v.boolean(),
   }),
 });

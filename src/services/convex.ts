@@ -3,7 +3,7 @@ import { ConvexReactClient } from 'convex/react';
 /**
  * Client Convex unique de l'app. L'adresse du déploiement vient de
  * `EXPO_PUBLIC_CONVEX_URL` (`.env.local` en développement, variables EAS pour
- * les builds). Les comptes restent sur Firebase : voir session.tsx.
+ * les builds). Les comptes passent aussi par Convex : voir session.tsx.
  */
 const url = process.env.EXPO_PUBLIC_CONVEX_URL;
 if (!url) console.warn('EXPO_PUBLIC_CONVEX_URL manquant : lance `npx convex dev` (voir README).');

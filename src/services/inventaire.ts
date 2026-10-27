@@ -8,7 +8,7 @@ import { appliquerOperations, type DonneesServeur, type OperationInventaire } fr
 import { arrondir } from '@/domaine/texte';
 import type { Aliment, Appareil, CourseLibre, Tiroir, TypeAppareil, Unite } from '@/domaine/types';
 import { convex } from './convex';
-import { auth } from './firebase';
+import { auteurCourant } from './session';
 
 /** Qui écrit (le serveur vérifie de toute façon l'identité réelle). */
 export interface Auteur {
@@ -23,8 +23,7 @@ export interface Auteur {
  * (tant que l'app reste ouverte).
  */
 function ecrire(maisonId: string, operations: OperationInventaire[]) {
-  const u = auth.currentUser;
-  const auteur = { uid: u?.uid ?? '', prenom: u?.displayName ?? '' };
+  const auteur = auteurCourant();
   return convex.mutation(
     api.inventaire.appliquer,
     { maisonId, operations },

@@ -1,16 +1,9 @@
 import { v } from 'convex/values';
 
-import { mutation, query, type MutationCtx } from './_generated/server';
+import { mutation, query } from './_generated/server';
 import { exigerIdentite, identite, verifier } from './lib';
 
-function profilDe(ctx: MutationCtx, uid: string) {
-  return ctx.db
-    .query('profils')
-    .withIndex('par_uid', (q) => q.eq('uid', uid))
-    .first();
-}
-
-/** Mon profil (`null` s'il n'existe pas encore ou si je ne suis pas connecté). */
+/** L'utilisateur connecté : uid, e-mail et prénom affiché. `null` si non connecté. */
 export const moi = query({
   args: {},
   handler: async (ctx) => {
@@ -20,17 +13,7 @@ export const moi = query({
       .query('profils')
       .withIndex('par_uid', (q) => q.eq('uid', moi.uid))
       .first();
-    return p ? { uid: p.uid, prenom: p.prenom } : null;
-  },
-});
-
-/** Crée mon profil s'il n'existe pas encore (inscription, ou compte créé hors de l'app). */
-export const assurer = mutation({
-  args: { prenom: v.string() },
-  handler: async (ctx, { prenom }) => {
-    const moi = await exigerIdentite(ctx);
-    if (await profilDe(ctx, moi.uid)) return;
-    await ctx.db.insert('profils', { uid: moi.uid, prenom: verifier.texte(prenom, 40, 'prenom'), createdAt: Date.now() });
+    return { uid: moi.uid, email: moi.email, prenom: p?.prenom ?? moi.nom };
   },
 });
 
@@ -40,7 +23,10 @@ export const changerPrenom = mutation({
   handler: async (ctx, a) => {
     const moi = await exigerIdentite(ctx);
     const prenom = verifier.texte(a.prenom, 40, 'prenom');
-    const profil = await profilDe(ctx, moi.uid);
+    const profil = await ctx.db
+      .query('profils')
+      .withIndex('par_uid', (q) => q.eq('uid', moi.uid))
+      .first();
     if (profil) await ctx.db.patch(profil._id, { prenom });
     else await ctx.db.insert('profils', { uid: moi.uid, prenom, createdAt: Date.now() });
     const membres = await ctx.db
