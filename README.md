@@ -44,7 +44,7 @@ npm test                # logique métier (Jest)
 
 1. `npx convex dev` : crée le projet et écrit `EXPO_PUBLIC_CONVEX_URL` dans `.env.local`.
 2. `npx @convex-dev/auth` : clés de session de Convex Auth (`SITE_URL` = `https://iglou.web.app`).
-3. `npx convex env set AUTH_RESEND_KEY …` : envoi des codes « Mot de passe oublié » via [Resend](https://resend.com).
+3. `npx convex env set GMAIL_ADRESSE …` et `npx convex env set GMAIL_MOT_DE_PASSE_APP …` : envoi des codes « Mot de passe oublié » depuis une adresse Gmail ([mot de passe d'application](https://myaccount.google.com/apppasswords), validation en deux étapes requise).
 4. Production : `npx convex deploy`, et la même configuration avec `--prod`.
 5. **Reprise des données Firebase** (comptes compris) : suivre [`scripts/transfert/LISEZMOI.md`](scripts/transfert/LISEZMOI.md).
 

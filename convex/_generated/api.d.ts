@@ -11,6 +11,7 @@
 import type * as acces from "../acces.js";
 import type * as auth from "../auth.js";
 import type * as compte from "../compte.js";
+import type * as courriel from "../courriel.js";
 import type * as donnees from "../donnees.js";
 import type * as http from "../http.js";
 import type * as lots from "../lots.js";
@@ -30,6 +31,7 @@ declare const fullApi: ApiFromModules<{
   acces: typeof acces;
   auth: typeof auth;
   compte: typeof compte;
+  courriel: typeof courriel;
   donnees: typeof donnees;
   http: typeof http;
   lots: typeof lots;

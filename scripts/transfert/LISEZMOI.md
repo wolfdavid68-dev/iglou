@@ -45,20 +45,14 @@ npx @convex-dev/auth
 Répondez `https://iglou.web.app` quand l'adresse du site (`SITE_URL`) est
 demandée. La commande génère les clés de session (`JWT_PRIVATE_KEY`, `JWKS`).
 
-**E-mails « Mot de passe oublié »** : créez un compte sur https://resend.com,
-puis :
+**E-mails « Mot de passe oublié »** : ils partent d'une adresse Gmail. Activez
+la validation en deux étapes sur ce compte Google, créez un mot de passe
+d'application sur https://myaccount.google.com/apppasswords, puis :
 
 ```bash
-npx convex env set AUTH_RESEND_KEY re_xxxxxxxx
+npx convex env set GMAIL_ADRESSE votre-adresse@gmail.com
+npx convex env set GMAIL_MOT_DE_PASSE_APP "abcd efgh ijkl mnop"
 ```
-
-Facultatif, une fois votre domaine vérifié chez Resend :
-
-```bash
-npx convex env set AUTH_EMAIL_FROM "Iglou <bonjour@votre-domaine.fr>"
-```
-
-Sans domaine vérifié, Resend n'envoie qu'à l'adresse du compte Resend.
 
 ## 3. Reprendre les paramètres de hachage des mots de passe
 
@@ -106,7 +100,7 @@ node importer.mjs
 
 Ajoutez `--prod` pour la production : `node importer.mjs --prod`. Pour la
 production, les étapes 2 et 3 doivent aussi être faites avec `--prod` (par
-exemple `npx convex env set --prod AUTH_RESEND_KEY …`).
+exemple `npx convex env set --prod GMAIL_ADRESSE …`).
 
 Le script fait trois choses :
 

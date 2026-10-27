@@ -1,21 +1,21 @@
-import Resend from '@auth/core/providers/resend';
+import { Email } from '@convex-dev/auth/providers/Email';
 import { Password } from '@convex-dev/auth/providers/Password';
 import { convexAuth } from '@convex-dev/auth/server';
 import { ConvexError } from 'convex/values';
 import { generateRandomString, type RandomReader } from '@oslojs/crypto/random';
-import { Resend as ResendAPI } from 'resend';
 
+import { internal } from './_generated/api';
 import type { DataModel } from './_generated/dataModel';
+import type { ActionCtx } from './_generated/server';
 import { motsDePasse } from './motsDePasse';
 
 /**
  * Code à 8 chiffres envoyé par e-mail pour choisir un nouveau mot de passe.
- * Nécessite la variable Convex AUTH_RESEND_KEY (clé https://resend.com) et,
- * pour un expéditeur à votre nom, AUTH_EMAIL_FROM (domaine vérifié chez Resend).
+ * L'envoi passe par Gmail (voir convex/courriel.ts pour les variables à définir).
  */
-const ReinitialisationParCode = Resend({
-  id: 'resend-otp',
-  apiKey: process.env.AUTH_RESEND_KEY,
+const ReinitialisationParCode = Email({
+  id: 'code-email',
+  maxAge: 15 * 60,
   async generateVerificationToken() {
     const aleatoire: RandomReader = {
       read(octets) {
@@ -24,20 +24,11 @@ const ReinitialisationParCode = Resend({
     };
     return generateRandomString(aleatoire, '0123456789', 8);
   },
-  async sendVerificationRequest({ identifier: email, provider, token }) {
-    const resend = new ResendAPI(provider.apiKey);
-    const { error } = await resend.emails.send({
-      from: process.env.AUTH_EMAIL_FROM ?? 'Iglou <onboarding@resend.dev>',
-      to: [email],
-      subject: 'Ton code Iglou pour changer de mot de passe',
-      text: `Ton code : ${token}\n\nSaisis-le dans l'application Iglou pour choisir un nouveau mot de passe. Il est valable 15 minutes.\n\nSi tu n'as rien demandé, ignore ce message.`,
-    });
-    if (error) {
-      // Raison du refus de Resend (domaine non vérifié, clé invalide…), visible dans les journaux Convex.
-      console.error('Resend a refusé l’envoi :', error.name, error.message);
-      // ConvexError : son code reste lisible par l'app même en production.
-      throw new ConvexError({ code: 'envoi-email' });
-    }
+  // Convex Auth passe le contexte de l'action en second argument (absent de ses types).
+  async sendVerificationRequest({ identifier: email, token }, ctx?: ActionCtx) {
+    if (!ctx) throw new ConvexError({ code: 'envoi-email' });
+    // nodemailer a besoin de Node : l'envoi se fait dans une action à part.
+    await ctx.runAction(internal.courriel.envoyerCodeReinitialisation, { email, code: token });
   },
 });
 

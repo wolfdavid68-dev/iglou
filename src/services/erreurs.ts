@@ -15,7 +15,7 @@ export function codeErreur(e: unknown): string {
   if (/already exists/i.test(texte)) return 'compte-existant';
   if (/TooManyFailedAttempts|rate limit/i.test(texte)) return 'trop-de-tentatives';
   if (/Invalid code|Could not verify code|InvalidVerificationCode/i.test(texte)) return 'code-reinitialisation';
-  if (/Envoi de l'e-mail impossible|AUTH_RESEND_KEY/i.test(texte)) return 'envoi-email';
+  if (/Envoi de l'e-mail impossible|GMAIL_ADRESSE|GMAIL_MOT_DE_PASSE_APP/i.test(texte)) return 'envoi-email';
   if (/mot-de-passe-faible|Invalid password/i.test(texte)) return 'mot-de-passe-faible';
   if (/Connection lost|network|Failed to fetch|WebSocket/i.test(texte)) return 'reseau';
   return '';
