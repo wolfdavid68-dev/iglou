@@ -50,3 +50,6 @@ firestore-debug*.log
 # Claude Code (réglages personnels)
 .claude/settings.local.json
 .claude/worktrees/
+
+# Transfert Firestore → Convex (données exportées)
+/transfert/

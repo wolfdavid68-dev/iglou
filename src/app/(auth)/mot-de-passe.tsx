@@ -3,7 +3,7 @@ import { useState } from 'react';
 
 import { emailValide, EcranFormulaire } from '@/composants/formulaire';
 import { Bouton, Champ, EnTete, Texte } from '@/composants/ui';
-import { messageErreur } from '@/services/firebase';
+import { messageErreur } from '@/services/erreurs';
 import { reinitialiserMotDePasse } from '@/services/session';
 
 export default function MotDePasse() {

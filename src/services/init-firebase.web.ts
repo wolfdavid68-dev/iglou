@@ -2,8 +2,8 @@ import { getApps, initializeApp } from 'firebase/app';
 
 /**
  * Web (aperçu dans le navigateur) : configuration publique de l'app web
- * Firebase. Ce ne sont pas des secrets : la sécurité repose sur firestore.rules.
- * Auth et Firestore passent tous deux par cette app (auth-firebase.web.ts, firestore.web.ts).
+ * Firebase, utilisée seulement pour les comptes (auth-firebase.web.ts). Ce ne
+ * sont pas des secrets : les données sont protégées côté serveur (convex/).
  */
 // Garde : le rechargement à chaud réexécute ce module.
 if (!getApps().length) initializeApp({

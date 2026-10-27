@@ -49,24 +49,24 @@ export default function FicheAliment() {
     if (sens === 1) {
       tic();
       const s = incrementer(a, pas);
-      lancer(modifierAliment(maisonId, a.id, { quantite: s.quantite, quantiteMax: s.quantiteMax }, auteur));
+      lancer(modifierAliment(maisonId, a.id, { quantite: s.quantite, quantiteMax: s.quantiteMax }));
     } else {
       const s = decrementer(a, pas);
       // Le stock qui tombe à zéro mérite un retour un peu plus marqué.
       if (s.quantite <= 0) choc();
       else tic();
-      lancer(consommerAliment(maisonId, a, s.quantite, auteur));
+      lancer(consommerAliment(maisonId, a, s.quantite));
     }
   };
 
   const marquerEpuise = () => {
     choc();
-    lancer(consommerAliment(maisonId, a, 0, auteur));
+    lancer(consommerAliment(maisonId, a, 0));
   };
 
   const deplacer = async () => {
     const cible = await choisirTiroir('Déplacer vers…', appareils, tiroirs, a.tiroirId);
-    if (cible) deplacerAvecAnnulation(maisonId, a, cible, tiroirs, auteur);
+    if (cible) deplacerAvecAnnulation(maisonId, a, cible, tiroirs);
   };
 
   const supprimer = () => {

@@ -2,8 +2,8 @@ import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 
-import { collection, doc, serverTimestamp, writeBatch } from './firestore';
-import { db } from './firebase';
+import { api } from '../../convex/_generated/api';
+import { convex } from './convex';
 
 /** Infos jointes à chaque signalement, pour reproduire le bug. */
 export function contexteTechnique() {
@@ -15,18 +15,14 @@ export function contexteTechnique() {
 
 /**
  * Envoie un signalement (bug ou idée). Les signalements ne sont lisibles que
- * depuis la console Firebase : l'app peut seulement en créer.
+ * depuis le tableau de bord Convex : l'app peut seulement en créer.
+ * L'uid et l'e-mail sont pris dans le jeton de connexion, côté serveur.
  */
-export function envoyerSignalement(message: string, auteur: { uid: string; email: string; prenom: string }, maisonId: string) {
-  const b = writeBatch(db);
-  b.set(doc(collection(db, 'signalements')), {
-    uid: auteur.uid,
-    email: auteur.email,
+export function envoyerSignalement(message: string, auteur: { prenom: string }, maisonId: string) {
+  return convex.mutation(api.signalements.envoyer, {
     prenom: auteur.prenom.slice(0, 40),
     maisonId,
     message: message.trim(),
     ...contexteTechnique(),
-    createdAt: serverTimestamp(),
   });
-  return b.commit();
 }

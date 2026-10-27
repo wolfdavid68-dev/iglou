@@ -24,12 +24,12 @@ export function supprimerAvecAnnulation(maisonId: string, a: Aliment, auteur: Au
   });
 }
 
-export function deplacerAvecAnnulation(maisonId: string, a: Aliment, cible: Tiroir, tiroirs: Tiroir[], auteur: Auteur) {
+export function deplacerAvecAnnulation(maisonId: string, a: Aliment, cible: Tiroir, tiroirs: Tiroir[]) {
   if (a.tiroirId === cible.id) return;
   const depart = tiroirs.find((t) => t.id === a.tiroirId);
-  lancer(deplacerAliment(maisonId, a, cible, auteur));
+  lancer(deplacerAliment(maisonId, a, cible));
   annulation.proposer(`${a.nom} → ${cible.nom}`, () => {
-    if (depart) lancer(deplacerAliment(maisonId, a, depart, auteur));
+    if (depart) lancer(deplacerAliment(maisonId, a, depart));
   });
 }
 
@@ -49,7 +49,7 @@ export function choisirTiroir(titre: string, appareils: Appareil[], tiroirs: Tir
  * quantité choisie du stock (bandeau « ANNULER »). La fenêtre permet aussi
  * d'ouvrir la fiche, ouverte directement quand il n'en reste plus.
  */
-export async function prendreAliment(maisonId: string, a: Aliment, auteur: Auteur, ouvrirFiche: () => void) {
+export async function prendreAliment(maisonId: string, a: Aliment, ouvrirFiche: () => void) {
   if (a.quantite <= 0) return ouvrirFiche();
   const r = await demanderPrise(a);
   if (r === null) return;
@@ -59,9 +59,9 @@ export async function prendreAliment(maisonId: string, a: Aliment, auteur: Auteu
   const s = fixerQuantite(a, a.quantite - prise);
   if (s.quantite <= 0) choc();
   else tic();
-  lancer(consommerAliment(maisonId, a, s.quantite, auteur));
+  lancer(consommerAliment(maisonId, a, s.quantite));
   annulation.proposer(
     s.quantite <= 0 ? `${a.nom} épuisé · ajouté aux courses` : `${a.nom} : −${formaterQuantite(prise, a.unite)}`,
-    () => lancer(modifierAliment(maisonId, a.id, { quantite: a.quantite, quantiteMax: a.quantiteMax }, auteur)),
+    () => lancer(modifierAliment(maisonId, a.id, { quantite: a.quantite, quantiteMax: a.quantiteMax })),
   );
 }

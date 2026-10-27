@@ -1,6 +1,5 @@
 /**
- * Web : React Native Firebase embarque sa propre copie du SDK JavaScript.
- * Son authentification ne serait pas vue par Firestore (firestore.web.ts),
- * d'où l'emploi direct de firebase/auth sur la même app.
+ * Web : React Native Firebase n'est pas complet sur le web, on passe par le
+ * SDK JavaScript Firebase (app initialisée dans init-firebase.web.ts).
  */
 export * from 'firebase/auth';

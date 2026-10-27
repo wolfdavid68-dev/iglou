@@ -9,7 +9,6 @@ import { BoutonIcone, EnTete, EtatVide, Texte } from '@/composants/ui';
 import { aConsommerEnPriorite, rechercher, type ResultatRecherche } from '@/domaine/inventaire';
 import { prendreAliment } from '@/services/actions-aliment';
 import { useDonnees } from '@/services/donnees-maison';
-import { useMoi } from '@/services/session';
 import { useCouleurs } from '@/theme';
 
 /** Recherche globale d'un aliment dans toute la maison. */
@@ -92,7 +91,6 @@ function LigneResultat({ resultat }: { resultat: ResultatRecherche }) {
   const router = useRouter();
   const c = useCouleurs();
   const { maisonId, appareils } = useDonnees();
-  const moi = useMoi();
   const aliment = resultat.aliment;
   const appareil = appareils.find((a) => a.id === aliment.appareilId);
   return (
@@ -100,7 +98,7 @@ function LigneResultat({ resultat }: { resultat: ResultatRecherche }) {
       accessibilityRole="button"
       accessibilityLabel={`${resultat.aliment.nom}, ${resultat.emplacement}`}
       onPress={() =>
-        prendreAliment(maisonId, aliment, { uid: moi.uid, prenom: moi.prenom }, () => router.push({ pathname: '/aliment/[id]', params: { id: aliment.id } }))
+        prendreAliment(maisonId, aliment, () => router.push({ pathname: '/aliment/[id]', params: { id: aliment.id } }))
       }
       className="min-h-16 gap-2 rounded-2xl border border-bordure bg-carte p-3 active:bg-carte-enfoncee">
       <ApercuAliment aliment={resultat.aliment} />
