@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import type { ComponentProps, ReactNode } from 'react';
+import { useState, type ComponentProps, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, Text, TextInput, View, type TextInputProps, type TextProps } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -390,13 +390,23 @@ export function Pastille({ fond, ton, texte }: { fond: string; ton: Ton; texte: 
   );
 }
 
-/** Compteur « − valeur + » avec boutons de 48 dp. */
+/** Nombre tel qu'on le tape : « 1,5 » plutôt que « 1.5 ». */
+const ecrireNombre = (v: number) => String(v).replace('.', ',');
+
+/**
+ * Compteur « − valeur + » avec boutons de 48 dp.
+ * La valeur se tape aussi au clavier : elle est prise en compte à chaque chiffre
+ * (un bouton pressé sans fermer le clavier garde donc la bonne valeur),
+ * puis remise dans les bornes quand on quitte le champ.
+ */
 export function Compteur({
   valeur,
   onChange,
   min = 0,
   max = Infinity,
   pas = 1,
+  minSaisie = min,
+  entier = false,
   libelle,
   suffixe,
 }: {
@@ -405,38 +415,81 @@ export function Compteur({
   min?: number;
   max?: number;
   pas?: number;
+  /** Plus petite valeur acceptée au clavier (par défaut `min`, la butée du bouton « − »). */
+  minSaisie?: number;
+  /** Nombres entiers seulement (ex. nombre de tiroirs). */
+  entier?: boolean;
   libelle: string;
   suffixe?: string;
 }) {
   const c = useCouleurs();
-  const arrondi = (v: number) => Math.round(v * 1000) / 1000;
+  // Texte en cours de frappe ; `null` hors saisie : le champ affiche alors la valeur.
+  const [brouillon, setBrouillon] = useState<string | null>(null);
+  const texte = brouillon ?? ecrireNombre(valeur);
+  const arrondi = (v: number) => (entier ? Math.round(v) : Math.round(v * 1000) / 1000);
+
+  const lire = (t: string) => {
+    const n = Number(t.replace(/\s/g, '').replace(',', '.'));
+    return t.trim() && Number.isFinite(n) ? arrondi(n) : null;
+  };
+
+  const taper = (t: string) => {
+    const propre = t.replace(entier ? /[^0-9]/g : /[^0-9.,]/g, '');
+    setBrouillon(propre);
+    const n = lire(propre);
+    if (n !== null && n >= minSaisie) onChange(Math.min(max, n));
+  };
+
+  const valider = () => {
+    if (brouillon === null) return;
+    setBrouillon(null);
+    const n = lire(brouillon);
+    // Saisie vide ou trop petite : on garde la dernière valeur valable.
+    const v = n === null || n < minSaisie ? valeur : Math.min(max, n);
+    if (v !== valeur) onChange(v);
+  };
+
+  const regler = (v: number) => {
+    tic();
+    onChange(v);
+    setBrouillon(null);
+  };
+
   return (
-    <View className="flex-row items-center gap-2" accessibilityRole="adjustable" accessibilityLabel={libelle} accessibilityValue={{ now: valeur, min, max: Number.isFinite(max) ? max : undefined }}>
+    <View className="flex-row items-center gap-2">
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Diminuer ${libelle}`}
         disabled={valeur <= min}
-        onPress={() => {
-          tic();
-          onChange(Math.max(min, arrondi(valeur - pas)));
-        }}
+        onPress={() => regler(Math.max(min, arrondi(valeur - pas)))}
         className={`size-12 items-center justify-center rounded-xl border border-bordure bg-carte active:bg-carte-enfoncee ${valeur <= min ? 'opacity-40' : ''}`}>
         <Ionicons name="remove" size={22} color={c.encre} />
       </Pressable>
-      <View className="min-w-16 items-center px-1">
-        <Texte poids="demi" className="text-lg" numberOfLines={1}>
-          {valeur.toLocaleString('fr-FR')}
-          {suffixe ? ` ${suffixe}` : ''}
-        </Texte>
+      <View className="flex-row items-center gap-1.5">
+        <TextInput
+          value={texte}
+          onChangeText={taper}
+          onBlur={valider}
+          onSubmitEditing={valider}
+          selectTextOnFocus
+          inputMode={entier ? 'numeric' : 'decimal'}
+          returnKeyType="done"
+          maxLength={9}
+          accessibilityLabel={libelle}
+          accessibilityHint="Tape un nombre ou utilise les boutons moins et plus."
+          className="h-12 w-24 rounded-xl border border-bordure bg-carte px-2 text-center font-inter-demi text-lg text-encre focus:border-frigo"
+        />
+        {suffixe ? (
+          <Texte poids="demi" className="text-lg">
+            {suffixe}
+          </Texte>
+        ) : null}
       </View>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Augmenter ${libelle}`}
         disabled={valeur >= max}
-        onPress={() => {
-          tic();
-          onChange(Math.min(max, arrondi(valeur + pas)));
-        }}
+        onPress={() => regler(Math.min(max, arrondi(valeur + pas)))}
         className={`size-12 items-center justify-center rounded-xl border border-bordure bg-carte active:bg-carte-enfoncee ${valeur >= max ? 'opacity-40' : ''}`}>
         <Ionicons name="add" size={22} color={c.encre} />
       </Pressable>

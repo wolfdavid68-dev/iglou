@@ -94,7 +94,7 @@ export default function EditerAppareil() {
           <Texte poids="moyen" ton="secondaire" className="text-sm">
             Nombre de tiroirs
           </Texte>
-          <Compteur libelle="nombre de tiroirs" valeur={nbTiroirs} onChange={setNbTiroirs} min={1} max={20} />
+          <Compteur libelle="nombre de tiroirs" valeur={nbTiroirs} onChange={setNbTiroirs} min={1} max={20} entier />
           <Texte ton="discret" className="text-sm">
             De 1 à 20. Tu pourras les renommer, en ajouter ou en retirer ensuite.
           </Texte>
