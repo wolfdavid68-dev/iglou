@@ -1,10 +1,4 @@
 {
-  "firestore": {
-    "database": "(default)",
-    "location": "eur3",
-    "rules": "firestore.rules",
-    "indexes": "firestore.indexes.json"
-  },
   "hosting": [
     {
       "site": "iglou",
@@ -28,10 +22,5 @@
         { "regex": "^/(.*)$", "destination": "https://iglou.web.app/:1", "type": 301 }
       ]
     }
-  ],
-  "emulators": {
-    "firestore": { "port": 8080 },
-    "auth": { "port": 9099 },
-    "singleProjectMode": true
-  }
+  ]
 }

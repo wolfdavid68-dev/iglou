@@ -5,7 +5,7 @@ import { View } from 'react-native';
 
 import { emailValide, EcranFormulaire } from '@/composants/formulaire';
 import { Bouton, Champ, Texte } from '@/composants/ui';
-import { messageErreur } from '@/services/firebase';
+import { messageErreur } from '@/services/erreurs';
 import { connecter } from '@/services/session';
 
 export default function Connexion() {

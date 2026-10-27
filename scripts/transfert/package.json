@@ -1,0 +1,13 @@
+{
+  "name": "iglou-transfert",
+  "private": true,
+  "type": "module",
+  "description": "Transfert unique Firebase → Convex (voir LISEZMOI.md)",
+  "scripts": {
+    "exporter": "node exporter.mjs",
+    "importer": "node importer.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^14.5.0"
+  }
+}

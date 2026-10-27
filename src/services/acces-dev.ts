@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 
+import { codeErreur } from './erreurs';
 import { creerMaison, useMaisons } from './maisons';
 import { lancer } from './retours';
 import { connecter, inscrire, useSession } from './session';
@@ -22,8 +23,6 @@ const ACTIF =
   !!EMAIL &&
   !!MDP;
 
-const COMPTE_ABSENT = ['auth/user-not-found', 'auth/invalid-credential', 'auth/invalid-login-credentials'];
-
 /** Vrai tant que l'entrée automatique est en cours (rien à afficher). */
 export function useAccesDirectDev(): boolean {
   const session = useSession();
@@ -37,8 +36,8 @@ export function useAccesDirectDev(): boolean {
     if (termine || session.chargement || utilisateur || connexionTentee.current) return;
     connexionTentee.current = true;
     connecter(EMAIL!, MDP!)
-      .catch((e: { code?: string }) => {
-        if (COMPTE_ABSENT.includes(e.code ?? '')) return inscrire(EMAIL!, MDP!, 'Testeur');
+      .catch((e) => {
+        if (codeErreur(e) === 'identifiants') return inscrire(EMAIL!, MDP!, 'Testeur');
         throw e;
       })
       .catch((e) => {

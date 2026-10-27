@@ -12,7 +12,7 @@ import { supprimerCompte } from '@/services/compte';
 import { confirmer, demander, saisir } from '@/services/dialogue';
 import { useDonnees, useEstProprietaire } from '@/services/donnees-maison';
 import { choisirJson, partagerJson } from '@/services/fichiers';
-import { nouvelId } from '@/services/firebase';
+import { nouvelId } from '@/services/convex';
 import { appliquerImport, type Auteur } from '@/services/inventaire';
 import { LIEN_CONFIDENTIALITE, ouvrirLien } from '@/services/liens';
 import {
@@ -119,7 +119,7 @@ export default function EcranReglages() {
     setOccupe('compte');
     try {
       // Une fois le mot de passe accepté, on quitte la maison ouverte avant d'effacer quoi que ce soit.
-      await supprimerCompte(mdp, adhesions, () => choisirMaison(null));
+      await supprimerCompte(moi.email, mdp, adhesions, () => choisirMaison(null));
       afficherMessage('Ton compte a été supprimé.');
     } catch (e) {
       signalerErreur(e);
@@ -179,7 +179,7 @@ export default function EcranReglages() {
     try {
       // Copie de sécurité de l'état actuel avant toute écriture.
       await partagerJson(nomFichierExport(`${maison.nom}-avant-import`), construireExport(maison.nom, inventaire));
-      const operations = planImport(mode, inventaire, v.fichier, () => nouvelId(maisonId, 'aliments'));
+      const operations = planImport(mode, inventaire, v.fichier, () => nouvelId());
       await appliquerImport(maisonId, operations, auteur);
       afficherMessage(mode === 'remplacer' ? 'Inventaire remplacé ✔' : 'Inventaire fusionné ✔');
     } catch (e) {

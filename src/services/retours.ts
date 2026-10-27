@@ -1,5 +1,5 @@
 import { creerGestionnaireAnnulation } from '@/domaine/annulation';
-import { messageErreur } from './firebase';
+import { messageErreur } from './erreurs';
 
 /**
  * Messages courts affichés en bas d'écran (erreurs, confirmations), et
@@ -51,8 +51,8 @@ export function signalerErreur(e: unknown) {
 }
 
 /**
- * Lance une écriture sans attendre le serveur : Firestore l'applique tout de
- * suite au cache local (l'interface se met à jour) et l'envoie dès que le
+ * Lance une écriture sans attendre le serveur : Convex l'applique tout de
+ * suite à l'affichage local (l'interface se met à jour) et l'envoie dès que le
  * réseau est disponible. Une écriture refusée est signalée à l'utilisateur.
  */
 export function lancer(ecriture: Promise<unknown>) {

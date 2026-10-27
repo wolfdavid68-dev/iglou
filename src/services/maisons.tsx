@@ -1,24 +1,11 @@
-import {
-  collection,
-  collectionGroup,
-  doc,
-  deleteDoc,
-  getDoc,
-  getDocs,
-  onSnapshot,
-  query,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
-  where,
-  writeBatch,
-} from './firestore';
+import type { OptimisticLocalStore } from 'convex/browser';
+import { useQuery } from 'convex/react';
 import { createContext, use, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 
-import { enLots } from '@/domaine/import-export';
 import { codeValide, genererCode, normaliserCode } from '@/domaine/invitation';
 import type { Role } from '@/domaine/types';
-import { codeErreur, db, refCollection, refDoc, refInvitation, refMaison, versMembre, type SousCollection } from './firebase';
+import { api, convex, nouvelId } from './convex';
+import { codeErreur } from './erreurs';
 import { useSession } from './session';
 import { stockage } from './stockage';
 
@@ -62,15 +49,14 @@ function ecrireMaisonActive(id: string | null) {
 export function MaisonsProvider({ children }: { children: ReactNode }) {
   const { utilisateur } = useSession();
   const uid = utilisateur?.uid ?? null;
-  // L'état est rattaché à l'uid : au changement de compte, on repart de zéro sans effet de bord.
-  const [etat, setEtat] = useState<{ uid: string | null; adhesions: Adhesion[]; charge: boolean }>({
-    uid: null,
-    adhesions: [],
-    charge: false,
-  });
+  // Rejoue la requête à chaque changement de compte : jamais les maisons d'un autre.
+  const liste = useQuery(api.maisons.miennes, uid ? {} : 'skip');
   const [maisonActiveId, setMaisonActiveId] = useState<string | null>(lireMaisonActive);
   const [messageRetrait, setMessageRetrait] = useState<string | null>(null);
   const activeRef = useRef(maisonActiveId);
+  const noms = useRef(new Map<string, string>());
+  const premiereReponse = useRef(true);
+  const retire = useRef(false);
 
   const choisirMaison = useCallback((id: string | null) => {
     activeRef.current = id;
@@ -79,62 +65,31 @@ export function MaisonsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!uid) return;
-    let actif = true;
-    let retire = false;
-    let premiereReponse = true;
-    const noms = new Map<string, string>();
-    const q = query(collectionGroup(db, 'membres'), where('uid', '==', uid));
-    const desabonner = onSnapshot(
-      q,
-      { includeMetadataChanges: true },
-      async (snap) => {
-        const membres = snap.docs.map(versMembre);
-        const liste = await Promise.all(
-          membres.map(async (m): Promise<Adhesion> => {
-            const maison = await getDoc(refMaison(m.maisonId)).catch(() => null);
-            const nom = (maison?.data()?.nom as string | undefined) ?? noms.get(m.maisonId) ?? 'Maison';
-            noms.set(m.maisonId, nom);
-            return { maisonId: m.maisonId, nom, role: m.role };
-          }),
-        );
-        if (!actif) return;
-        liste.sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
-        // Tant que seul le cache répond et qu'il est vide, on attend le serveur.
-        const charge = !snap.metadata.fromCache || liste.length > 0;
-        setEtat({ uid, adhesions: liste, charge });
+    premiereReponse.current = true;
+    retire.current = false;
+  }, [uid]);
 
-        if (snap.metadata.fromCache) return;
-        const active = activeRef.current;
-        if (active && !liste.some((a) => a.maisonId === active)) {
-          retire = true;
-          const nom = noms.get(active);
-          setMessageRetrait(nom ? `Tu ne fais plus partie de « ${nom} ».` : 'Tu ne fais plus partie de cette maison.');
-          choisirMaison(null);
-        } else if (!active && liste.length === 1 && !retire && premiereReponse) {
-          // Une seule maison au lancement : on y entre directement.
-          choisirMaison(liste[0].maisonId);
-        }
-        premiereReponse = false;
-      },
-      () => {
-        if (actif) setEtat((e) => ({ ...e, uid, charge: true }));
-      },
-    );
-    return () => {
-      actif = false;
-      desabonner();
-    };
-  }, [uid, choisirMaison]);
-
-  const adhesions = etat.uid === uid ? etat.adhesions : [];
-  const chargement = !uid || etat.uid !== uid || !etat.charge;
+  useEffect(() => {
+    if (!liste) return;
+    liste.forEach((a) => noms.current.set(a.maisonId, a.nom));
+    const active = activeRef.current;
+    if (active && !liste.some((a) => a.maisonId === active)) {
+      retire.current = true;
+      const nom = noms.current.get(active);
+      setMessageRetrait(nom ? `Tu ne fais plus partie de « ${nom} ».` : 'Tu ne fais plus partie de cette maison.');
+      choisirMaison(null);
+    } else if (!active && liste.length === 1 && !retire.current && premiereReponse.current) {
+      // Une seule maison au lancement : on y entre directement.
+      choisirMaison(liste[0].maisonId);
+    }
+    premiereReponse.current = false;
+  }, [liste, choisirMaison]);
 
   return (
     <Contexte
       value={{
-        chargement,
-        adhesions,
+        chargement: !uid || liste === undefined,
+        adhesions: liste ?? [],
         maisonActiveId,
         choisirMaison,
         messageRetrait,
@@ -156,84 +111,129 @@ export function useMaisons() {
  * ------------------------------------------------------------------------- */
 
 /**
- * Crée la maison, l'adhésion du propriétaire et le code d'invitation en un seul
- * lot. Renvoie l'id tout de suite : la maison apparaît localement même hors ligne.
+ * Crée la maison et l'adhésion du propriétaire. Renvoie l'id tout de suite :
+ * la maison apparaît localement avant la réponse du serveur.
  */
 export function creerMaison(nom: string, uid: string, prenom: string) {
+  const maisonId = nouvelId();
   const code = genererCode();
-  const maisonId = doc(collection(db, 'maisons')).id;
-  const lot = writeBatch(db);
-  lot.set(refMaison(maisonId), { nom: nom.trim(), codeInvitation: code, createdBy: uid, createdAt: serverTimestamp() });
-  lot.set(refDoc(maisonId, 'membres', uid), { uid, maisonId, prenom, role: 'proprietaire', joinedAt: serverTimestamp() });
-  lot.set(refInvitation(code), { maisonId });
-  return { maisonId, ecriture: lot.commit() };
+  const propre = nom.trim();
+  const ecriture = convex.mutation(
+    api.maisons.creer,
+    { cle: maisonId, nom: propre, code, prenom },
+    {
+      optimisticUpdate: (store) => {
+        const maintenant = Date.now();
+        const miennes = store.getQuery(api.maisons.miennes, {}) ?? [];
+        store.setQuery(
+          api.maisons.miennes,
+          {},
+          [...miennes, { maisonId, nom: propre, role: 'proprietaire' as const }].sort((a, b) => a.nom.localeCompare(b.nom, 'fr')),
+        );
+        store.setQuery(
+          api.donnees.maison,
+          { maison: maisonId },
+          {
+            maison: { id: maisonId, nom: propre, codeInvitation: code, createdBy: uid, createdAt: maintenant },
+            membres: [{ uid, maisonId, prenom: prenom || 'Moi', role: 'proprietaire', joinedAt: maintenant }],
+            appareils: [],
+            tiroirs: [],
+            aliments: [],
+            libres: [],
+          },
+        );
+      },
+    },
+  );
+  return { maisonId, ecriture };
 }
 
 export type ResultatRejoindre = { ok: true; maisonId: string; dejaMembre: boolean } | { ok: false; message: string };
 
-export async function rejoindreMaison(saisie: string, uid: string, prenom: string, adhesions: Adhesion[]): Promise<ResultatRejoindre> {
+export async function rejoindreMaison(saisie: string, _uid: string, prenom: string, _adhesions: Adhesion[]): Promise<ResultatRejoindre> {
   const code = normaliserCode(saisie);
   if (!codeValide(code)) return { ok: false, message: 'Le code doit contenir 6 caractères.' };
-  const invitation = await getDoc(refInvitation(code));
-  const maisonId = invitation.data()?.maisonId as string | undefined;
-  if (!invitation.exists() || !maisonId) return { ok: false, message: 'Code invalide ou expiré.' };
-  if (adhesions.some((a) => a.maisonId === maisonId)) return { ok: true, maisonId, dejaMembre: true };
   try {
-    await setDoc(refDoc(maisonId, 'membres', uid), { uid, maisonId, prenom, role: 'membre', joinedAt: serverTimestamp(), code });
+    const r = await convex.mutation(api.maisons.rejoindre, { code, prenom });
+    return r.ok ? r : { ok: false, message: 'Code invalide ou expiré.' };
   } catch (e) {
-    if (codeErreur(e) === 'firestore/permission-denied') return { ok: false, message: 'Code invalide ou expiré.' };
+    if (codeErreur(e) === 'invalide') return { ok: false, message: 'Code invalide ou expiré.' };
     throw e;
   }
-  return { ok: true, maisonId, dejaMembre: false };
 }
 
-export function quitterMaison(maisonId: string, uid: string) {
-  return deleteDoc(refDoc(maisonId, 'membres', uid));
+/** Retire une maison de ma liste tout de suite (avant la réponse du serveur). */
+const sansMaison = (maison: string) => ({
+  optimisticUpdate: (store: OptimisticLocalStore) => {
+    const miennes = store.getQuery(api.maisons.miennes, {});
+    if (miennes) store.setQuery(api.maisons.miennes, {}, miennes.filter((a) => a.maisonId !== maison));
+  },
+});
+
+export function quitterMaison(maisonId: string, _uid: string) {
+  return convex.mutation(api.maisons.quitter, { maison: maisonId }, sansMaison(maisonId));
 }
 
 export function retirerMembre(maisonId: string, uid: string) {
-  return deleteDoc(refDoc(maisonId, 'membres', uid));
+  return convex.mutation(
+    api.maisons.retirerMembre,
+    { maison: maisonId, uid },
+    {
+      optimisticUpdate: (store) => {
+        const d = store.getQuery(api.donnees.maison, { maison: maisonId });
+        if (d) store.setQuery(api.donnees.maison, { maison: maisonId }, { ...d, membres: d.membres.filter((m) => m.uid !== uid) });
+      },
+    },
+  );
 }
 
 export function renommerMaison(maisonId: string, nom: string) {
-  return updateDoc(refMaison(maisonId), { nom: nom.trim() });
+  const propre = nom.trim();
+  return convex.mutation(
+    api.maisons.renommer,
+    { maison: maisonId, nom: propre },
+    {
+      optimisticUpdate: (store) => {
+        const d = store.getQuery(api.donnees.maison, { maison: maisonId });
+        if (d) store.setQuery(api.donnees.maison, { maison: maisonId }, { ...d, maison: { ...d.maison, nom: propre } });
+        const miennes = store.getQuery(api.maisons.miennes, {});
+        if (miennes) store.setQuery(api.maisons.miennes, {}, miennes.map((a) => (a.maisonId === maisonId ? { ...a, nom: propre } : a)));
+      },
+    },
+  );
 }
 
 export function changerPrenomMembre(maisonId: string, uid: string, prenom: string) {
-  return updateDoc(refDoc(maisonId, 'membres', uid), { prenom: prenom.trim() });
+  const propre = prenom.trim();
+  return convex.mutation(
+    api.maisons.changerPrenomMembre,
+    { maison: maisonId, prenom: propre },
+    {
+      optimisticUpdate: (store) => {
+        const d = store.getQuery(api.donnees.maison, { maison: maisonId });
+        if (d) store.setQuery(api.donnees.maison, { maison: maisonId }, { ...d, membres: d.membres.map((m) => (m.uid === uid ? { ...m, prenom: propre } : m)) });
+      },
+    },
+  );
 }
 
 /** Nouveau code : l'ancien cesse immédiatement de fonctionner. */
-export function regenererCode(maisonId: string, ancienCode: string) {
+export function regenererCode(maisonId: string, _ancienCode: string) {
   const code = genererCode();
-  const lot = writeBatch(db);
-  lot.update(refMaison(maisonId), { codeInvitation: code });
-  lot.set(refInvitation(code), { maisonId });
-  lot.delete(refInvitation(ancienCode));
-  return { code, ecriture: lot.commit() };
+  const ecriture = convex.mutation(
+    api.maisons.regenererCode,
+    { maison: maisonId, code },
+    {
+      optimisticUpdate: (store) => {
+        const d = store.getQuery(api.donnees.maison, { maison: maisonId });
+        if (d) store.setQuery(api.donnees.maison, { maison: maisonId }, { ...d, maison: { ...d.maison, codeInvitation: code } });
+      },
+    },
+  );
+  return { code, ecriture };
 }
 
 /** Suppression complète (propriétaire) : tout le contenu, puis la maison. */
-export async function supprimerMaison(maisonId: string, uid: string, code: string) {
-  const collections: SousCollection[] = ['aliments', 'tiroirs', 'appareils', 'coursesLibres', 'consommations'];
-  const refs = [];
-  for (const nom of collections) {
-    const snap = await getDocs(refCollection(maisonId, nom));
-    refs.push(...snap.docs.map((d) => d.ref));
-  }
-  const membres = await getDocs(refCollection(maisonId, 'membres'));
-  refs.push(...membres.docs.filter((d) => d.id !== uid).map((d) => d.ref));
-  await Promise.all(
-    enLots(refs).map((lot) => {
-      const b = writeBatch(db);
-      lot.forEach((r) => b.delete(r));
-      return b.commit();
-    }),
-  );
-  // Dernier lot : la maison, l'invitation et notre propre adhésion ensemble.
-  const fin = writeBatch(db);
-  fin.delete(refInvitation(code));
-  fin.delete(refMaison(maisonId));
-  fin.delete(refDoc(maisonId, 'membres', uid));
-  await fin.commit();
+export async function supprimerMaison(maisonId: string, _uid?: string, _code?: string) {
+  await convex.mutation(api.maisons.supprimer, { maison: maisonId }, sansMaison(maisonId));
 }

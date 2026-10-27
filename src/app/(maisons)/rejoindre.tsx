@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { EcranFormulaire } from '@/composants/formulaire';
 import { Bouton, Champ, EnTete, Texte } from '@/composants/ui';
 import { LONGUEUR_CODE, normaliserCode } from '@/domaine/invitation';
-import { messageErreur } from '@/services/firebase';
+import { messageErreur } from '@/services/erreurs';
 import { rejoindreMaison, useMaisons } from '@/services/maisons';
 import { afficherMessage } from '@/services/retours';
 import { useMoi } from '@/services/session';

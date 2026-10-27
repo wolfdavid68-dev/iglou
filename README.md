@@ -2,20 +2,21 @@
 
 Inventaire partagé du frigo et du congélateur, par « maisons » : chaque membre voit en direct ce qu'il reste, ce qui manque, et la liste de courses qui en découle.
 
-- **Stack** : Expo SDK 57 · React Native 0.86 · Expo Router · Uniwind (Tailwind 4) · Firebase (Auth + Firestore, cache hors ligne).
+- **Stack** : Expo SDK 57 · React Native 0.86 · Expo Router · Uniwind (Tailwind 4) · Convex (base de données temps réel + Convex Auth) · PWA hébergée sur Firebase Hosting.
 - **Cahier des charges** : [`docs/cahier-des-charges.md`](docs/cahier-des-charges.md).
-- **Sécurité** : l'app ne contient que la configuration publique Firebase. Aucun identifiant admin / compte de service. Toutes les autorisations sont dans [`firestore.rules`](firestore.rules).
+- **Sécurité** : l'app ne contient que l'adresse publique du serveur Convex. Toutes les autorisations sont vérifiées côté serveur, dans les fonctions du dossier [`convex/`](convex/) (voir `convex/acces.ts`).
 
 ## Démarrer
 
 ```bash
 npm install
-npx expo start
+npx convex dev      # serveur Convex (1re fois : connexion + création du projet)
+npx expo start      # dans un second terminal
 ```
 
 - **Aperçu web** (le plus rapide) : touche `w`, puis http://localhost:8081.
   Pour entrer directement dans l'app sans passer par la connexion, copier `.env.example` en `.env.local` et y mettre un compte **de test**.
-- **Téléphone Android** : l'app utilise des modules natifs (React Native Firebase), elle ne tourne donc pas dans Expo Go. Il faut un *development build* :
+- **Téléphone Android** : l'app utilise des modules natifs, elle ne tourne donc pas dans Expo Go. Il faut un *development build* (à refaire depuis le passage à Convex : les modules Firebase natifs ont été retirés) :
 
   ```bash
   npx eas-cli@latest build -p android --profile development
@@ -29,7 +30,6 @@ npx expo start
 npx tsc --noEmit        # typage
 npx expo lint           # lint
 npm test                # logique métier (Jest)
-npm run test:regles     # règles Firestore sur l'émulateur (Java 21 requis)
 ```
 
 ## Builds
@@ -40,18 +40,17 @@ npm run test:regles     # règles Firestore sur l'émulateur (Java 21 requis)
 | `preview` | APK installable directement | `npx eas-cli@latest build -p android --profile preview` |
 | `production` | AAB pour le Play Store | `npx eas-cli@latest build -p android --profile production` |
 
-## À configurer dans Firebase (une fois)
+## À configurer dans Convex (une fois)
 
-1. **Authentication** → Méthodes de connexion → activer **E-mail/Mot de passe**.
-2. **Firestore** : créer la base (région `eur3`), puis déployer règles et index :
+1. `npx convex dev` : crée le projet et écrit `EXPO_PUBLIC_CONVEX_URL` dans `.env.local`.
+2. `npx @convex-dev/auth` : clés de session de Convex Auth (`SITE_URL` = `https://iglou.web.app`).
+3. `npx convex env set AUTH_RESEND_KEY …` : envoi des codes « Mot de passe oublié » via [Resend](https://resend.com).
+4. Production : `npx convex deploy`, et la même configuration avec `--prod`.
+5. **Reprise des données Firebase** (comptes compris) : suivre [`scripts/transfert/LISEZMOI.md`](scripts/transfert/LISEZMOI.md).
 
-   ```bash
-   npx firebase-tools deploy --only firestore
-   ```
+Le nom de paquet Android `biz.iglou` est **provisoire** : à changer dans `app.json` avant la première publication (il ne pourra plus changer ensuite sur le Play Store).
 
-3. **Android** : le fichier `google-services.json` doit correspondre au paquet `biz.iglou`.
-   Le nom de paquet est **provisoire** : à changer dans `app.json` *et* dans Firebase avant la première publication (il ne pourra plus changer ensuite sur le Play Store).
-4. **Empreintes SHA** : après le premier build EAS, ajouter les SHA-1/SHA-256 (`npx eas-cli@latest credentials`) dans les paramètres du projet Firebase.
+La PWA reste publiée sur Firebase Hosting (`npx firebase-tools deploy --only hosting`).
 
 ## Organisation du code
 
@@ -63,8 +62,9 @@ src/
     (app)/        onglets Maison / Courses / Recherche / Réglages, fiches appareil et aliment
   composants/   composants d'interface réutilisables
   domaine/      logique métier pure, testée (quantités, courses, import/export…)
-  services/     Firebase, session, maisons, inventaire, dialogues, fichiers
-tests/regles/  tests des règles Firestore (émulateur)
+  services/     Convex, session, maisons, inventaire, dialogues, fichiers
+convex/         serveur : schéma, fonctions, autorisations, Convex Auth
+scripts/transfert/  reprise unique des données Firebase
 ```
 
 ## À tester à la main sur téléphone

@@ -28,7 +28,7 @@ export default function EditerAppareil() {
   const [creeId, setCreeId] = useState<string | null>(null);
   const ouvert = useRef(false);
 
-  // Sur Android, Firestore signale le nouvel appareil un instant après l'écriture :
+  // Le nouvel appareil peut n'apparaître qu'un instant après l'écriture :
   // on n'ouvre son écran qu'une fois qu'il est dans la liste (sinon « introuvable »).
   useEffect(() => {
     if (!creeId || ouvert.current || !appareils.some((a) => a.id === creeId)) return;

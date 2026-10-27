@@ -98,7 +98,7 @@ describe("plan d'import", () => {
   });
 });
 
-test('découpage en lots Firestore', () => {
+test('découpage en lots', () => {
   const lots = enLots(Array.from({ length: 1000 }, (_, i) => i));
   expect(lots.map((l) => l.length)).toEqual([450, 450, 100]);
 });

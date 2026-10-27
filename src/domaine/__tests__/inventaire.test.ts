@@ -203,9 +203,9 @@ describe('corbeille + ANNULER', () => {
 });
 
 test('état de synchronisation (bandeau hors ligne)', () => {
-  expect(etatSynchro([{ fromCache: false, hasPendingWrites: false }])).toBe('synchronise');
-  expect(etatSynchro([{ fromCache: false, hasPendingWrites: true }])).toBe('en-attente');
-  expect(etatSynchro([{ fromCache: true, hasPendingWrites: true }, undefined])).toBe('hors-ligne');
+  expect(etatSynchro({ isWebSocketConnected: true, hasInflightRequests: false })).toBe('synchronise');
+  expect(etatSynchro({ isWebSocketConnected: true, hasInflightRequests: true })).toBe('en-attente');
+  expect(etatSynchro({ isWebSocketConnected: false, hasInflightRequests: true })).toBe('hors-ligne');
 });
 
 describe('« Déplacer vers… »', () => {
