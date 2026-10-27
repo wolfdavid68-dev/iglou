@@ -244,7 +244,9 @@ async function lireFirestore(cle: string | undefined): Promise<SourceFirestore> 
   const { getFirestore } = await import('firebase-admin/firestore');
   const { getAuth } = await import('firebase-admin/auth');
   const { readFileSync } = await import('node:fs');
-  initializeApp({ credential: cle ? cert(JSON.parse(readFileSync(cle, 'utf8'))) : applicationDefault(), projectId: PROJET_FIREBASE });
+  // Clé : fichier (--cle), ou contenu JSON dans la variable FIREBASE_SERVICE_ACCOUNT.
+  const json = cle ? readFileSync(cle, 'utf8') : process.env.FIREBASE_SERVICE_ACCOUNT;
+  initializeApp({ credential: json ? cert(JSON.parse(json)) : applicationDefault(), projectId: PROJET_FIREBASE });
   const db = getFirestore();
   const lire = async (ref: CollectionReference): Promise<DocSource[]> =>
     (await ref.get()).docs.map((d) => ({ id: d.id, data: versMs(d.data()) as Record<string, unknown> }));
@@ -280,8 +282,8 @@ async function principal(args: string[]) {
 
   const i = args.indexOf('--cle');
   const cle = i >= 0 ? args[i + 1] : undefined;
-  if (!cle && !process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    console.error('Clé de compte de service Firebase manquante : --cle chemin/vers/cle.json (voir en tête du script).');
+  if (!cle && !process.env.FIREBASE_SERVICE_ACCOUNT && !process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    console.error('Clé de compte de service Firebase manquante : --cle chemin/vers/cle.json ou variable FIREBASE_SERVICE_ACCOUNT.');
     process.exit(1);
   }
 

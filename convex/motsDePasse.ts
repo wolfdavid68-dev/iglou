@@ -6,7 +6,9 @@ import { Scrypt } from 'lucia';
  * Mots de passe des comptes. Les nouveaux sont hachés avec Scrypt (défaut de
  * Convex Auth). Les comptes transférés depuis Firebase gardent leur hash
  * Firebase (« scrypt modifié ») : le mot de passe ne change pas pour
- * l'utilisateur. Paramètres à copier depuis la console Firebase
+ * l'utilisateur, et il est converti au format Convex à sa première
+ * connexion (voir auth.ts) : une fois tout le monde reconnecté
+ * (`npx convex run transfert:restantsAConvertir` = 0), ce code peut partir. Paramètres à copier depuis la console Firebase
  * (Authentication → ⋮ → Paramètres de hachage du mot de passe) dans les
  * variables d'environnement Convex FIREBASE_SCRYPT_*.
  */
@@ -22,6 +24,7 @@ export interface ParametresFirebase {
 
 /** Hash d'un compte transféré : `firebase-scrypt$<hash base64>$<sel base64>`. */
 export const secretFirebase = (hash: string, sel: string) => `${PREFIXE_FIREBASE}${hash}$${sel}`;
+export const estSecretFirebase = (secret: string) => secret.startsWith(PREFIXE_FIREBASE);
 
 const octets = (base64: string) => Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
 

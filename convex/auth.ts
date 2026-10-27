@@ -1,8 +1,10 @@
 import { Email } from '@convex-dev/auth/providers/Email';
 import { Password } from '@convex-dev/auth/providers/Password';
-import { convexAuth } from '@convex-dev/auth/server';
+import { convexAuth, modifyAccountCredentials } from '@convex-dev/auth/server';
+import type { GenericActionCtx, GenericDataModel } from 'convex/server';
 import { ConvexError } from 'convex/values';
 
+import { internal } from './_generated/api';
 import { hachage } from './motsDePasse';
 
 /**
@@ -82,12 +84,31 @@ type AvecOptions = { options: { authorize: (...a: unknown[]) => Promise<unknown>
 const options = (motDePasse as unknown as AvecOptions).options;
 const autoriser = options.authorize;
 options.authorize = async (...a: unknown[]) => {
+  let resultat: unknown;
   try {
-    return await autoriser(...a);
+    resultat = await autoriser(...a);
   } catch (e) {
     throw traduireErreur(e);
   }
+  const [params, ctx] = a as [Record<string, unknown>, GenericActionCtx<GenericDataModel>];
+  if (params.flow === 'signIn' && typeof params.password === 'string') {
+    await convertirAncienHash(ctx, String(params.email).trim().toLowerCase(), params.password);
+  }
+  return resultat;
 };
+
+/**
+ * Compte transféré depuis Firebase : le mot de passe, qui vient d'être
+ * vérifié, est ré-enregistré au format Convex. Ne bloque jamais la connexion.
+ */
+async function convertirAncienHash(ctx: GenericActionCtx<GenericDataModel>, email: string, motDePasse: string) {
+  try {
+    if (!(await ctx.runQuery(internal.transfert.aHashFirebase, { email }))) return;
+    await modifyAccountCredentials(ctx, { provider: 'password', account: { id: email, secret: motDePasse } });
+  } catch (e) {
+    console.warn('Conversion du mot de passe reportée', e);
+  }
+}
 
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   providers: [motDePasse],

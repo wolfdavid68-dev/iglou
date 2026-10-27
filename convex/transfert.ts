@@ -1,5 +1,7 @@
-import { internalMutation } from './_generated/server';
-import { secretFirebase } from './motsDePasse';
+import { v } from 'convex/values';
+
+import { internalMutation, internalQuery } from './_generated/server';
+import { estSecretFirebase, secretFirebase } from './motsDePasse';
 
 /** Comptes traités par appel (reste largement sous les limites d'une transaction). */
 const LOT = 200;
@@ -48,5 +50,26 @@ export const creerComptes = internalMutation({
     }
     const termine = (await ctx.db.query('transfertComptes').first()) === null;
     return { crees, termine };
+  },
+});
+
+/** Le compte a-t-il encore son ancien hash Firebase ? (converti à la connexion, voir auth.ts) */
+export const aHashFirebase = internalQuery({
+  args: { email: v.string() },
+  handler: async (ctx, { email }) => {
+    const compte = await ctx.db
+      .query('authAccounts')
+      .withIndex('providerAndAccountId', (q) => q.eq('provider', 'password').eq('providerAccountId', email))
+      .first();
+    return !!compte?.secret && estSecretFirebase(compte.secret);
+  },
+});
+
+/** Comptes transférés dont le mot de passe n'a pas encore été converti (personne ne s'est reconnecté). */
+export const restantsAConvertir = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const comptes = await ctx.db.query('authAccounts').collect();
+    return comptes.filter((c) => c.secret && estSecretFirebase(c.secret)).length;
   },
 });

@@ -102,6 +102,21 @@ Chacun se reconnecte donc avec **son e-mail et son mot de passe habituels**, et 
 4. Production : après `npm run deploy`, la même commande avec `--prod` en plus. À faire juste avant de publier la nouvelle version de l'app : ce qui serait écrit dans Firebase après coup ne serait pas transféré.
 5. Vérifier, puis supprimer la clé de compte de service (fichier et clé dans la console) et, quand tout va bien, le projet Firebase.
 
+À la première connexion de chaque utilisateur, son ancien mot de passe Firebase est ré-enregistré au format Convex. `npx convex run --prod transfert:restantsAConvertir` indique combien de comptes ne se sont pas encore reconnectés. Une fois le transfert fait, on peut retirer le script, `firebase-admin` et la table de transit ; le code de vérification des anciens mots de passe (`convex/motsDePasse.ts`) peut partir quand ce nombre est à 0 (les retardataires utiliseront « Mot de passe oublié »).
+
+### Faire faire le transfert par Claude (session cloud)
+
+Ajouter ces variables dans les réglages de l'environnement cloud (menu de l'environnement dans la barre de titre de la session → *Edit* → variables / secrets), puis ouvrir une nouvelle session et demander « fais le transfert vers Convex » :
+
+| Variable | Où la trouver |
+| --- | --- |
+| `CONVEX_DEPLOY_KEY` | Tableau de bord Convex → projet → déploiement de **production** → *Settings* → *Deploy keys* (créer le projet en région Europe d'abord). |
+| `FIREBASE_SERVICE_ACCOUNT` | Contenu complet du fichier JSON de clé de compte de service Firebase (étape 1 ci-dessus). |
+| `FIREBASE_SCRYPT_SIGNER_KEY`, `FIREBASE_SCRYPT_SALT_SEPARATOR`, `FIREBASE_SCRYPT_ROUNDS`, `FIREBASE_SCRYPT_MEM_COST` | Console Firebase → Authentication → ⋮ → *Paramètres de hachage du mot de passe*. |
+| `AUTH_RESEND_KEY`, `AUTH_EMAIL_FROM` (facultatif) | Compte Resend, pour « Mot de passe oublié ». |
+
+Ne jamais coller ces valeurs dans la conversation.
+
 ## Organisation du code
 
 ```
