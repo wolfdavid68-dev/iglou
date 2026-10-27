@@ -32,8 +32,12 @@ const ReinitialisationParCode = Resend({
       subject: 'Ton code Iglou pour changer de mot de passe',
       text: `Ton code : ${token}\n\nSaisis-le dans l'application Iglou pour choisir un nouveau mot de passe. Il est valable 15 minutes.\n\nSi tu n'as rien demandé, ignore ce message.`,
     });
-    // ConvexError : son code reste lisible par l'app même en production.
-    if (error) throw new ConvexError({ code: 'envoi-email' });
+    if (error) {
+      // Raison du refus de Resend (domaine non vérifié, clé invalide…), visible dans les journaux Convex.
+      console.error('Resend a refusé l’envoi :', error.name, error.message);
+      // ConvexError : son code reste lisible par l'app même en production.
+      throw new ConvexError({ code: 'envoi-email' });
+    }
   },
 });
 
