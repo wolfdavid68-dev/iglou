@@ -221,7 +221,7 @@ function GrilleTiroirs({ maisonId, appareil, tiroirs, aliments, appareils, tousT
       return;
     }
     const tiroir = tiroirs.find((t) => t.id === cible);
-    if (tiroir) deplacerAvecAnnulation(maisonId, g.aliment, tiroir, tousTiroirs);
+    if (tiroir) deplacerAvecAnnulation(maisonId, g.aliment, tiroir, tousTiroirs, auteur);
   };
 
   const mesurer = (id: string, vue: View | null) => {
@@ -246,7 +246,7 @@ function GrilleTiroirs({ maisonId, appareil, tiroirs, aliments, appareils, tousT
 
   async function deplacerVers(a: Aliment) {
     const cible = await choisirTiroir(`Déplacer « ${a.nom} » vers…`, appareils, tousTiroirs, a.tiroirId);
-    if (cible) deplacerAvecAnnulation(maisonId, a, cible, tousTiroirs);
+    if (cible) deplacerAvecAnnulation(maisonId, a, cible, tousTiroirs, auteur);
   }
 
   return (
@@ -267,7 +267,7 @@ function GrilleTiroirs({ maisonId, appareil, tiroirs, aliments, appareils, tousT
               contenu={filtrerParRayons(alimentsDuTiroir(aliments, t.id), actifs)}
               enGlisse={glisse?.aliment.id ?? null}
               onAjouter={() => router.push({ pathname: '/aliment/editer', params: { tiroirId: t.id } })}
-              onToucher={(a) => prendreAliment(maisonId, a, () => router.push({ pathname: '/aliment/[id]', params: { id: a.id } }))}
+              onToucher={(a) => prendreAliment(maisonId, a, auteur, () => router.push({ pathname: '/aliment/[id]', params: { id: a.id } }))}
               onDeplacer={deplacerVers}
               onSupprimer={(a) => supprimerAvecAnnulation(maisonId, a, auteur)}
               glisser={{ debut, bouger, deposer, arreter }}
@@ -650,7 +650,7 @@ function GestionTiroirs({ maisonId, appareil, tiroirs, aliments, appareils, tous
     const contenu = alimentsDuTiroir(aliments, t.id);
     if (contenu.length === 0) {
       if (await confirmer(`Supprimer « ${t.nom} » ?`, 'Le tiroir est vide.', 'Supprimer', true)) {
-        lancer(supprimerTiroir(maisonId, t, [], null));
+        lancer(supprimerTiroir(maisonId, t, [], null, auteur));
       }
       return;
     }
@@ -661,10 +661,10 @@ function GestionTiroirs({ maisonId, appareil, tiroirs, aliments, appareils, tous
       { libelle: 'Annuler', valeur: null, style: 'annuler' },
     ]);
     if (choix === 'tout') {
-      lancer(supprimerTiroir(maisonId, t, contenu, null));
+      lancer(supprimerTiroir(maisonId, t, contenu, null, auteur));
     } else if (choix === 'deplacer') {
       const destination = await choisirTiroir(`Déplacer le contenu de « ${t.nom} » vers…`, appareils, tousTiroirs, t.id);
-      if (destination) lancer(supprimerTiroir(maisonId, t, contenu, destination));
+      if (destination) lancer(supprimerTiroir(maisonId, t, contenu, destination, auteur));
     }
   };
 

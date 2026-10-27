@@ -1,149 +1,149 @@
 import { v } from 'convex/values';
 
-import { mutation, query, type MutationCtx } from './_generated/server';
-import { adhesion, erreur, exigerIdentite, exigerMembre, exigerProprietaire, identite, lister, maisonParId, verifier, type TableMaison } from './lib';
+import type { MutationCtx } from './_generated/server';
+import { mutation, query } from './_generated/server';
+import { adhesion, codeInvitationValide, exigerMembre, exigerProprietaire, maisonParCle, moi, moiOuNul, refus, texte } from './acces';
 
-/** Mes maisons (nom et rôle), triées par nom. `null` tant que la connexion n'est pas établie. */
-export const mesAdhesions = query({
+const ALPHABET_CODE = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+
+/** Mes maisons (nom et rôle), triées par nom. */
+export const miennes = query({
   args: {},
   handler: async (ctx) => {
-    const moi = await identite(ctx);
-    if (!moi) return null;
+    const m = await moiOuNul(ctx);
+    if (!m) return [];
     const membres = await ctx.db
       .query('membres')
-      .withIndex('par_uid', (q) => q.eq('uid', moi.uid))
+      .withIndex('par_uid', (q) => q.eq('uid', m.uid))
       .collect();
-    const liste = [];
-    for (const m of membres) {
-      const maison = await maisonParId(ctx, m.maisonId);
-      if (maison) liste.push({ maisonId: m.maisonId, nom: maison.nom, role: m.role });
-    }
+    const liste = await Promise.all(
+      membres.map(async (a) => ({ maisonId: a.maison, nom: (await maisonParCle(ctx, a.maison))?.nom ?? 'Maison', role: a.role })),
+    );
     return liste.sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
   },
 });
 
-async function codeLibre(ctx: MutationCtx, code: string) {
-  verifier.codeInvitation(code);
-  const existe = await ctx.db
+const codeLibre = async (ctx: MutationCtx, code: string) =>
+  !(await ctx.db
     .query('maisons')
     .withIndex('par_code', (q) => q.eq('codeInvitation', code))
-    .first();
-  if (existe) throw erreur('already-exists', 'codeInvitation');
+    .first());
+
+/** Le code proposé par l'app s'il est libre, sinon un autre. */
+async function codeUnique(ctx: MutationCtx, propose: string) {
+  if (codeInvitationValide(propose) && (await codeLibre(ctx, propose))) return propose;
+  for (;;) {
+    let code = '';
+    for (let i = 0; i < 6; i++) code += ALPHABET_CODE[Math.floor(Math.random() * ALPHABET_CODE.length)];
+    if (await codeLibre(ctx, code)) return code;
+  }
 }
 
-/** Crée la maison et l'adhésion du propriétaire. `id` et `code` sont tirés par l'app. */
+/** Crée la maison et l'adhésion du propriétaire. `cle` est choisie par l'app. */
 export const creer = mutation({
-  args: { id: v.string(), nom: v.string(), code: v.string(), prenom: v.string() },
-  handler: async (ctx, a) => {
-    const moi = await exigerIdentite(ctx);
-    verifier.id(a.id);
-    if (await maisonParId(ctx, a.id)) throw erreur('already-exists', 'id');
-    await codeLibre(ctx, a.code);
+  args: { cle: v.string(), nom: v.string(), code: v.string(), prenom: v.string() },
+  handler: async (ctx, { cle, nom, code, prenom }) => {
+    const { uid } = await moi(ctx);
+    if (!cle || (await maisonParCle(ctx, cle))) throw refus();
     const maintenant = Date.now();
-    await ctx.db.insert('maisons', {
-      id: a.id,
-      nom: verifier.texte(a.nom, 60, 'nom'),
-      codeInvitation: a.code,
-      createdBy: moi.uid,
-      createdAt: maintenant,
-    });
-    await ctx.db.insert('membres', {
-      maisonId: a.id,
-      uid: moi.uid,
-      prenom: verifier.texte(a.prenom, 40, 'prenom'),
-      role: 'proprietaire',
-      joinedAt: maintenant,
-    });
+    const codeInvitation = await codeUnique(ctx, code);
+    await ctx.db.insert('maisons', { cle, nom: texte(nom.trim(), 60), codeInvitation, createdBy: uid, createdAt: maintenant });
+    await ctx.db.insert('membres', { maison: cle, uid, prenom: texte(prenom.trim() || 'Moi', 40), role: 'proprietaire', joinedAt: maintenant });
+    return codeInvitation;
   },
 });
 
-/** Rejoindre avec un code d'invitation. `null` si le code ne correspond à aucune maison. */
+/** Rejoint la maison dont `code` est le code d'invitation actuel. */
 export const rejoindre = mutation({
   args: { code: v.string(), prenom: v.string() },
   handler: async (ctx, { code, prenom }) => {
-    const moi = await exigerIdentite(ctx);
-    const maison = await ctx.db
-      .query('maisons')
-      .withIndex('par_code', (q) => q.eq('codeInvitation', code))
-      .first();
-    if (!maison) return null;
-    if (await adhesion(ctx, maison.id, moi.uid)) return { maisonId: maison.id, dejaMembre: true };
-    await ctx.db.insert('membres', {
-      maisonId: maison.id,
-      uid: moi.uid,
-      prenom: verifier.texte(prenom, 40, 'prenom'),
-      role: 'membre',
-      joinedAt: Date.now(),
-    });
-    return { maisonId: maison.id, dejaMembre: false };
+    const { uid } = await moi(ctx);
+    const maison = codeInvitationValide(code)
+      ? await ctx.db
+          .query('maisons')
+          .withIndex('par_code', (q) => q.eq('codeInvitation', code))
+          .first()
+      : null;
+    if (!maison) return { ok: false as const };
+    if (await adhesion(ctx, maison.cle, uid)) return { ok: true as const, maisonId: maison.cle, dejaMembre: true };
+    await ctx.db.insert('membres', { maison: maison.cle, uid, prenom: texte(prenom.trim() || 'Moi', 40), role: 'membre', joinedAt: Date.now() });
+    return { ok: true as const, maisonId: maison.cle, dejaMembre: false };
   },
 });
 
-/** Quitter une maison (le propriétaire doit d'abord passer la main ou la supprimer). */
+/** Quitter une maison (le propriétaire doit d'abord la supprimer ou passer la main). */
 export const quitter = mutation({
-  args: { maisonId: v.string() },
-  handler: async (ctx, { maisonId }) => {
-    const { membre } = await exigerMembre(ctx, maisonId);
-    if (membre.role === 'proprietaire') throw erreur('permission-denied');
+  args: { maison: v.string() },
+  handler: async (ctx, { maison }) => {
+    const { membre } = await exigerMembre(ctx, maison);
+    if (membre.role === 'proprietaire') throw refus();
     await ctx.db.delete(membre._id);
   },
 });
 
-/** Le propriétaire retire un autre membre. */
 export const retirerMembre = mutation({
-  args: { maisonId: v.string(), uid: v.string() },
-  handler: async (ctx, { maisonId, uid }) => {
-    const { moi } = await exigerProprietaire(ctx, maisonId);
-    if (uid === moi.uid) throw erreur('permission-denied');
-    const cible = await adhesion(ctx, maisonId, uid);
-    if (cible) await ctx.db.delete(cible._id);
+  args: { maison: v.string(), uid: v.string() },
+  handler: async (ctx, { maison, uid }) => {
+    await exigerProprietaire(ctx, maison);
+    const cible = await adhesion(ctx, maison, uid);
+    if (cible && cible.role !== 'proprietaire') await ctx.db.delete(cible._id);
   },
 });
 
-/** Renommer : tout membre. */
 export const renommer = mutation({
-  args: { maisonId: v.string(), nom: v.string() },
-  handler: async (ctx, { maisonId, nom }) => {
-    await exigerMembre(ctx, maisonId);
-    const maison = await maisonParId(ctx, maisonId);
-    if (!maison) throw erreur('not-found');
-    await ctx.db.patch(maison._id, { nom: verifier.texte(nom, 60, 'nom') });
+  args: { maison: v.string(), nom: v.string() },
+  handler: async (ctx, { maison, nom }) => {
+    await exigerMembre(ctx, maison);
+    const doc = await maisonParCle(ctx, maison);
+    if (!doc) throw refus('introuvable');
+    await ctx.db.patch(doc._id, { nom: texte(nom.trim(), 60) });
   },
 });
 
-/** Nouveau code d'invitation (propriétaire) : l'ancien cesse aussitôt de fonctionner. */
+/** Mon prénom affiché dans une maison. */
+export const changerPrenomMembre = mutation({
+  args: { maison: v.string(), prenom: v.string() },
+  handler: async (ctx, { maison, prenom }) => {
+    const { membre } = await exigerMembre(ctx, maison);
+    await ctx.db.patch(membre._id, { prenom: texte(prenom.trim(), 40) });
+  },
+});
+
+/** Nouveau code : l'ancien cesse immédiatement de fonctionner. */
 export const regenererCode = mutation({
-  args: { maisonId: v.string(), code: v.string() },
-  handler: async (ctx, { maisonId, code }) => {
-    await exigerProprietaire(ctx, maisonId);
-    const maison = await maisonParId(ctx, maisonId);
-    if (!maison) throw erreur('not-found');
-    await codeLibre(ctx, code);
-    await ctx.db.patch(maison._id, { codeInvitation: code });
+  args: { maison: v.string(), code: v.string() },
+  handler: async (ctx, { maison, code }) => {
+    await exigerProprietaire(ctx, maison);
+    const doc = await maisonParCle(ctx, maison);
+    if (!doc) throw refus('introuvable');
+    const codeInvitation = await codeUnique(ctx, code);
+    await ctx.db.patch(doc._id, { codeInvitation });
+    return codeInvitation;
   },
 });
 
-const CONTENU: TableMaison[] = ['aliments', 'tiroirs', 'appareils', 'coursesLibres', 'consommations'];
-
-/** Efface la maison, tout son contenu et toutes les adhésions. */
-export async function effacerMaison(ctx: MutationCtx, maisonId: string) {
-  for (const table of CONTENU) {
-    for (const d of await lister(ctx, table, maisonId)) await ctx.db.delete(d._id);
+/** Efface la maison et tout son contenu. Appelé par le propriétaire (ou à la suppression de son compte). */
+export async function effacerMaison(ctx: MutationCtx, maison: string) {
+  for (const table of ['aliments', 'tiroirs', 'appareils', 'coursesLibres', 'consommations'] as const) {
+    const docs = await ctx.db
+      .query(table)
+      .withIndex('par_maison_cle', (q) => q.eq('maison', maison))
+      .collect();
+    for (const d of docs) await ctx.db.delete(d._id);
   }
   const membres = await ctx.db
     .query('membres')
-    .withIndex('par_maison', (q) => q.eq('maisonId', maisonId))
+    .withIndex('par_maison_uid', (q) => q.eq('maison', maison))
     .collect();
   for (const m of membres) await ctx.db.delete(m._id);
-  const maison = await maisonParId(ctx, maisonId);
-  if (maison) await ctx.db.delete(maison._id);
+  const doc = await maisonParCle(ctx, maison);
+  if (doc) await ctx.db.delete(doc._id);
 }
 
-/** Suppression complète par le propriétaire, en une seule transaction. */
 export const supprimer = mutation({
-  args: { maisonId: v.string() },
-  handler: async (ctx, { maisonId }) => {
-    await exigerProprietaire(ctx, maisonId);
-    await effacerMaison(ctx, maisonId);
+  args: { maison: v.string() },
+  handler: async (ctx, { maison }) => {
+    await exigerProprietaire(ctx, maison);
+    await effacerMaison(ctx, maison);
   },
 });

@@ -51,8 +51,8 @@ export function signalerErreur(e: unknown) {
 }
 
 /**
- * Lance une écriture sans attendre le serveur : elle est appliquée tout de
- * suite aux données locales (l'interface se met à jour) et part dès que le
+ * Lance une écriture sans attendre le serveur : Convex l'applique tout de
+ * suite à l'affichage local (l'interface se met à jour) et l'envoie dès que le
  * réseau est disponible. Une écriture refusée est signalée à l'utilisateur.
  */
 export function lancer(ecriture: Promise<unknown>) {

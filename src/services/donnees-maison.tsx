@@ -1,14 +1,11 @@
-import { useConvexAuth, useConvexConnectionState, useQuery } from 'convex/react';
-import { createContext, use, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useConvexConnectionState, useQuery } from 'convex/react';
+import { createContext, use, useMemo, type ReactNode } from 'react';
 
-import { api } from '../../convex/_generated/api';
 import { appareilsTries } from '@/domaine/inventaire';
-import type { DonneesServeur } from '@/domaine/operations';
 import { etatSynchro, type EtatSynchro } from '@/domaine/synchro';
 import type { Aliment, Appareil, CourseLibre, Maison, Membre, Tiroir } from '@/domaine/types';
-import { cacheMaison, ecrireCache, lireCache } from './cache';
+import { api } from './convex';
 import { useMaisons } from './maisons';
-import { useSession } from './session';
 
 export interface DonneesMaison {
   maisonId: string;
@@ -18,60 +15,40 @@ export interface DonneesMaison {
   tiroirs: Tiroir[];
   aliments: Aliment[];
   libres: CourseLibre[];
-  /** Vrai tant qu'aucune donnée (serveur ou dernier état connu) n'est disponible. */
+  /** Vrai tant que les premières données ne sont pas arrivées. */
   chargement: boolean;
   synchro: EtatSynchro;
 }
 
 const Contexte = createContext<DonneesMaison | null>(null);
 
-/** État de la connexion à Convex (bandeau « Hors ligne »). */
-export function useSynchro(): EtatSynchro {
-  const c = useConvexConnectionState();
-  return etatSynchro({
-    connecte: c.isWebSocketConnected,
-    dejaConnecte: c.hasEverConnected,
-    tentativesEchouees: c.connectionRetries,
-    ecrituresEnAttente: c.inflightMutations,
-  });
-}
-
 /**
- * Toute la maison active, en temps réel, en une seule requête Convex. Avant la
- * première réponse (démarrage, hors ligne), on affiche le dernier état connu.
+ * Écoute en temps réel toute la maison active (une seule requête Convex).
+ * Les écritures de l'app sont appliquées localement tout de suite
+ * (voir lots.ts), puis confirmées par le serveur.
  */
 export function DonneesMaisonProvider({ maisonId, children }: { maisonId: string; children: ReactNode }) {
-  const uid = useSession().utilisateur?.uid ?? null;
-  const { isAuthenticated } = useConvexAuth();
-  const serveur = useQuery(api.donnees.maison, isAuthenticated ? { maisonId } : 'skip');
-  const cache = useMemo(() => (uid ? lireCache<DonneesServeur>(uid, cacheMaison(maisonId)) : null), [uid, maisonId]);
-  // `null` = plus accès (retrait, suppression) : on garde l'affichage, le
-  // fournisseur des maisons détecte le retrait et renvoie au choix de maison.
-  const [dernier, setDernier] = useState<DonneesServeur | null>(null);
-  if (serveur && serveur !== dernier) setDernier(serveur);
-  const synchro = useSynchro();
-
-  useEffect(() => {
-    if (uid && serveur) ecrireCache(uid, cacheMaison(maisonId), serveur);
-  }, [uid, maisonId, serveur]);
-
-  const d = serveur ?? dernier ?? cache;
+  // En cas de retrait (null), on garde l'écran : le fournisseur des maisons
+  // détecte le retrait et renvoie au choix de maison.
+  const donnees = useQuery(api.donnees.maison, { maison: maisonId });
+  const connexion = useConvexConnectionState();
+  const synchro = etatSynchro(connexion);
 
   const valeur = useMemo<DonneesMaison>(
     () => ({
       maisonId,
-      maison: d?.maison ?? null,
-      membres: [...(d?.membres ?? [])].sort((a, b) =>
+      maison: donnees?.maison ?? null,
+      membres: [...(donnees?.membres ?? [])].sort((a, b) =>
         a.role === b.role ? a.prenom.localeCompare(b.prenom, 'fr') : a.role === 'proprietaire' ? -1 : 1,
       ),
-      appareils: appareilsTries(d?.appareils ?? []),
-      tiroirs: d?.tiroirs ?? [],
-      aliments: d?.aliments ?? [],
-      libres: d?.libres ?? [],
-      chargement: !d,
+      appareils: appareilsTries(donnees?.appareils ?? []),
+      tiroirs: donnees?.tiroirs ?? [],
+      aliments: donnees?.aliments ?? [],
+      libres: donnees?.libres ?? [],
+      chargement: donnees === undefined,
       synchro,
     }),
-    [maisonId, d, synchro],
+    [maisonId, donnees, synchro],
   );
 
   return <Contexte value={valeur}>{children}</Contexte>;
@@ -90,9 +67,7 @@ export function useEstProprietaire(): boolean {
   return adhesions.find((a) => a.maisonId === maisonId)?.role === 'proprietaire';
 }
 
-/** Vrai quand la connexion au serveur est perdue (seulement dans une maison ouverte). */
+/** Vrai si la connexion au serveur est coupée (hors ligne). */
 export function useHorsLigne(): boolean {
-  const dansUneMaison = use(Contexte) !== null;
-  return useSynchro() === 'hors-ligne' && dansUneMaison;
+  return use(Contexte)?.synchro === 'hors-ligne';
 }
-

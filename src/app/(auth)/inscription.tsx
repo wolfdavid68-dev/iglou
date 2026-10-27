@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 import { emailValide, EcranFormulaire } from '@/composants/formulaire';
 import { Bouton, Champ, EnTete, Texte } from '@/composants/ui';
-import { messageErreur } from '@/services/erreurs';
+import { codeErreur, messageErreur } from '@/services/erreurs';
 import { LIEN_CONFIDENTIALITE, ouvrirLien } from '@/services/liens';
 import { inscrire } from '@/services/session';
 
@@ -29,9 +29,9 @@ export default function Inscription() {
     try {
       await inscrire(email.trim(), motDePasse, prenom.trim());
     } catch (err) {
-      const code = (err as { code?: string }).code;
-      if (code === 'auth/email-already-in-use' || code === 'auth/invalid-email') setErreurs({ email: messageErreur(err) });
-      else if (code === 'auth/weak-password') setErreurs({ motDePasse: messageErreur(err) });
+      const code = codeErreur(err);
+      if (code === 'compte-existant') setErreurs({ email: messageErreur(err) });
+      else if (code === 'mot-de-passe-faible') setErreurs({ motDePasse: messageErreur(err) });
       else setErreurs({ general: messageErreur(err) });
       setEnvoi(false);
     }

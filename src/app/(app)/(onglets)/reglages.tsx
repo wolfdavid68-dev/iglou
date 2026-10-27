@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 
 import { Bouton, Carte, Chargement, EnTete, Ligne, Pastille, Segments, Separateur, Texte, TitreSection } from '@/composants/ui';
-import { nouvelId } from '@/domaine/ids';
 import { construireExport, nomFichierExport, planImport, resumeFichier, validerImport, type ModeImport } from '@/domaine/import-export';
 import { messageInvitation } from '@/domaine/invitation';
 import type { Membre } from '@/domaine/types';
@@ -13,9 +12,11 @@ import { supprimerCompte } from '@/services/compte';
 import { confirmer, demander, saisir } from '@/services/dialogue';
 import { useDonnees, useEstProprietaire } from '@/services/donnees-maison';
 import { choisirJson, partagerJson } from '@/services/fichiers';
+import { nouvelId } from '@/services/convex';
 import { appliquerImport, type Auteur } from '@/services/inventaire';
 import { LIEN_CONFIDENTIALITE, ouvrirLien } from '@/services/liens';
 import {
+  changerPrenomMembre,
   quitterMaison,
   regenererCode,
   renommerMaison,
@@ -66,7 +67,7 @@ export default function EcranReglages() {
       'Régénérer',
     );
     if (!ok) return;
-    const { code, ecriture } = regenererCode(maisonId);
+    const { code, ecriture } = regenererCode(maisonId, maison.codeInvitation);
     lancer(ecriture);
     afficherMessage(`Nouveau code : ${code}`);
   };
@@ -86,7 +87,8 @@ export default function EcranReglages() {
   const changerMonPrenom = async () => {
     const prenom = await saisir('Mon prénom', { valeur: moi.prenom, maxLength: 30, message: 'Visible par les membres de tes maisons.' });
     if (!prenom || prenom === moi.prenom) return;
-    lancer(changerPrenom(prenom));
+    lancer(changerPrenom(moi.uid, prenom));
+    adhesions.forEach((a) => lancer(changerPrenomMembre(a.maisonId, moi.uid, prenom)));
   };
 
   const seDeconnecter = async () => {
@@ -116,7 +118,8 @@ export default function EcranReglages() {
     if (!mdp) return;
     setOccupe('compte');
     try {
-      await supprimerCompte(moi.uid, mdp, adhesions, () => choisirMaison(null));
+      // Une fois le mot de passe accepté, on quitte la maison ouverte avant d'effacer quoi que ce soit.
+      await supprimerCompte(moi.email, mdp, adhesions, () => choisirMaison(null));
       afficherMessage('Ton compte a été supprimé.');
     } catch (e) {
       signalerErreur(e);
@@ -176,7 +179,7 @@ export default function EcranReglages() {
     try {
       // Copie de sécurité de l'état actuel avant toute écriture.
       await partagerJson(nomFichierExport(`${maison.nom}-avant-import`), construireExport(maison.nom, inventaire));
-      const operations = planImport(mode, inventaire, v.fichier, nouvelId);
+      const operations = planImport(mode, inventaire, v.fichier, () => nouvelId());
       await appliquerImport(maisonId, operations, auteur);
       afficherMessage(mode === 'remplacer' ? 'Inventaire remplacé ✔' : 'Inventaire fusionné ✔');
     } catch (e) {
@@ -192,7 +195,7 @@ export default function EcranReglages() {
     const ok = await confirmer(`Quitter « ${maison.nom} » ?`, 'Tu n’auras plus accès à son inventaire. Pour revenir, il te faudra un nouveau code d’invitation.', 'Quitter', true);
     if (!ok) return;
     choisirMaison(null);
-    lancer(quitterMaison(maisonId));
+    lancer(quitterMaison(maisonId, moi.uid));
   };
 
   const supprimer = async () => {
@@ -204,9 +207,10 @@ export default function EcranReglages() {
     );
     if (!ok) return;
     const nom = maison.nom;
+    const code = maison.codeInvitation;
     choisirMaison(null);
     afficherMessage('Suppression en cours…');
-    supprimerMaison(maisonId)
+    supprimerMaison(maisonId, moi.uid, code)
       .then(() => afficherMessage(`« ${nom} » a été supprimée.`))
       .catch(signalerErreur);
   };

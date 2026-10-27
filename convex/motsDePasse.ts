@@ -1,78 +1,69 @@
 import { ctr } from '@noble/ciphers/aes.js';
 import { scrypt } from '@noble/hashes/scrypt.js';
-import { Scrypt } from 'lucia';
 
 /**
- * Mots de passe des comptes. Les nouveaux sont hachés avec Scrypt (défaut de
- * Convex Auth). Les comptes transférés depuis Firebase gardent leur hash
- * Firebase (« scrypt modifié ») : le mot de passe ne change pas pour
- * l'utilisateur, et il est converti au format Convex à sa première
- * connexion (voir auth.ts) : une fois tout le monde reconnecté
- * (`npx convex run transfert:restantsAConvertir` = 0), ce code peut partir. Paramètres à copier depuis la console Firebase
- * (Authentication → ⋮ → Paramètres de hachage du mot de passe) dans les
- * variables d'environnement Convex FIREBASE_SCRYPT_*.
+ * Hachage des mots de passe pour Convex Auth.
+ *
+ * - Nouveaux comptes et mots de passe réinitialisés : même format que Convex
+ *   Auth par défaut (scrypt, « sel:clé » en hexadécimal).
+ * - Comptes repris de Firebase : le hash Firebase est gardé tel quel
+ *   (« fbscrypt$sel$hash ») et vérifié avec l'algorithme de Firebase
+ *   (scrypt modifié). Chacun garde donc son mot de passe actuel.
+ *
+ * Paramètres Firebase : console Firebase → Authentication → Users → ⋮ →
+ * « Password hash parameters », enregistrés dans les variables Convex
+ * FIREBASE_SIGNER_KEY, FIREBASE_SALT_SEPARATOR, FIREBASE_ROUNDS, FIREBASE_MEM_COST.
+ *
+ * Code JavaScript pur : ces fonctions tournent dans une mutation Convex
+ * (pas de module crypto de Node).
  */
 
-const PREFIXE_FIREBASE = 'firebase-scrypt$';
+const enc = new TextEncoder();
 
-export interface ParametresFirebase {
-  cleSignature: string;
-  separateurSel: string;
-  tours: number;
-  coutMemoire: number;
-}
+const depuisBase64 = (s: string) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
+const enHex = (b: Uint8Array) => Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
 
-/** Hash d'un compte transféré : `firebase-scrypt$<hash base64>$<sel base64>`. */
-export const secretFirebase = (hash: string, sel: string) => `${PREFIXE_FIREBASE}${hash}$${sel}`;
-export const estSecretFirebase = (secret: string) => secret.startsWith(PREFIXE_FIREBASE);
-
-const octets = (base64: string) => Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-
+/** Comparaison à temps constant. */
 function egaux(a: Uint8Array, b: Uint8Array) {
   if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
-  return diff === 0;
+  let d = 0;
+  for (let i = 0; i < a.length; i++) d |= a[i] ^ b[i];
+  return d === 0;
 }
 
-/**
- * Algorithme de Firebase : clé = scrypt(mot de passe, sel ‖ séparateur), puis
- * la clé de signature du projet chiffrée en AES-256-CTR (IV nul) avec les
- * 32 premiers octets de cette clé doit redonner le hash enregistré.
- */
-export function verifierHashFirebase(motDePasse: string, hash: string, sel: string, p: ParametresFirebase): boolean {
-  const s = octets(sel);
-  const sep = octets(p.separateurSel);
-  const selComplet = new Uint8Array(s.length + sep.length);
-  selComplet.set(s);
-  selComplet.set(sep, s.length);
-  const derivee = scrypt(new TextEncoder().encode(motDePasse), selComplet, { N: 2 ** p.coutMemoire, r: p.tours, p: 1, dkLen: 64 });
-  const chiffre = ctr(derivee.slice(0, 32), new Uint8Array(16)).encrypt(octets(p.cleSignature));
-  return egaux(chiffre, octets(hash));
+const cleConvex = (mdp: string, selHex: string) => scrypt(enc.encode(mdp.normalize('NFKC')), enc.encode(selHex), { N: 16384, r: 16, p: 1, dkLen: 64 });
+
+function verifierFirebase(mdp: string, selB64: string, hashB64: string) {
+  const signerKey = process.env.FIREBASE_SIGNER_KEY;
+  const separateur = process.env.FIREBASE_SALT_SEPARATOR;
+  if (!signerKey || !separateur) throw new Error('Paramètres de hachage Firebase absents (FIREBASE_SIGNER_KEY, FIREBASE_SALT_SEPARATOR).');
+  const rounds = Number(process.env.FIREBASE_ROUNDS ?? 8);
+  const memCost = Number(process.env.FIREBASE_MEM_COST ?? 14);
+
+  const sel = depuisBase64(selB64);
+  const sep = depuisBase64(separateur);
+  const selComplet = new Uint8Array(sel.length + sep.length);
+  selComplet.set(sel);
+  selComplet.set(sep, sel.length);
+  const cle = scrypt(enc.encode(mdp), selComplet, { N: 2 ** memCost, r: rounds, p: 1, dkLen: 32 });
+  const attendu = ctr(cle, new Uint8Array(16)).encrypt(depuisBase64(signerKey));
+  return egaux(attendu, depuisBase64(hashB64));
 }
 
-function parametresFirebase(): ParametresFirebase {
-  const e = process.env;
-  if (!e.FIREBASE_SCRYPT_SIGNER_KEY || !e.FIREBASE_SCRYPT_SALT_SEPARATOR || !e.FIREBASE_SCRYPT_ROUNDS || !e.FIREBASE_SCRYPT_MEM_COST) {
-    throw new Error('Paramètres de hachage Firebase manquants (variables FIREBASE_SCRYPT_*).');
-  }
-  return {
-    cleSignature: e.FIREBASE_SCRYPT_SIGNER_KEY,
-    separateurSel: e.FIREBASE_SCRYPT_SALT_SEPARATOR,
-    tours: Number(e.FIREBASE_SCRYPT_ROUNDS),
-    coutMemoire: Number(e.FIREBASE_SCRYPT_MEM_COST),
-  };
-}
+export const PREFIXE_FIREBASE = 'fbscrypt$';
 
-export const hachage = {
-  async hashSecret(motDePasse: string) {
-    return await new Scrypt().hash(motDePasse);
+export const motsDePasse = {
+  async hashSecret(mdp: string) {
+    const sel = enHex(crypto.getRandomValues(new Uint8Array(16)));
+    return `${sel}:${enHex(cleConvex(mdp, sel))}`;
   },
-  async verifySecret(motDePasse: string, enregistre: string) {
-    if (enregistre.startsWith(PREFIXE_FIREBASE)) {
-      const [hash, sel] = enregistre.slice(PREFIXE_FIREBASE.length).split('$');
-      return verifierHashFirebase(motDePasse, hash, sel, parametresFirebase());
+  async verifySecret(mdp: string, stocke: string) {
+    if (stocke.startsWith(PREFIXE_FIREBASE)) {
+      const [, sel, hash] = stocke.split('$');
+      return !!sel && !!hash && verifierFirebase(mdp, sel, hash);
     }
-    return await new Scrypt().verify(enregistre, motDePasse);
+    const [sel, cle] = stocke.split(':');
+    if (!sel || !cle) return false;
+    return egaux(enc.encode(enHex(cleConvex(mdp, sel))), enc.encode(cle));
   },
 };

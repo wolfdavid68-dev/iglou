@@ -18,7 +18,7 @@ const TYPES: { valeur: TypeAppareil; libelle: string }[] = [
 export default function EditerAppareil() {
   const router = useRouter();
   const { id, type: typeInitial } = useLocalSearchParams<{ id?: string; type?: TypeAppareil }>();
-  const { maisonId, appareils, aliments } = useDonnees();
+  const { maisonId, appareils, tiroirs, aliments } = useDonnees();
   const existant = id ? appareils.find((a) => a.id === id) : undefined;
 
   const [nom, setNom] = useState(existant?.nom ?? '');
@@ -28,7 +28,7 @@ export default function EditerAppareil() {
   const [creeId, setCreeId] = useState<string | null>(null);
   const ouvert = useRef(false);
 
-  // Le nouvel appareil n'apparaît dans les données qu'un instant après l'écriture :
+  // Le nouvel appareil peut n'apparaître qu'un instant après l'écriture :
   // on n'ouvre son écran qu'une fois qu'il est dans la liste (sinon « introuvable »).
   useEffect(() => {
     if (!creeId || ouvert.current || !appareils.some((a) => a.id === creeId)) return;
@@ -68,7 +68,7 @@ export default function EditerAppareil() {
       true,
     );
     if (!ok) return;
-    lancer(supprimerAppareil(maisonId, existant));
+    lancer(supprimerAppareil(maisonId, existant, tiroirs, aliments));
     router.dismissTo('/');
   }
 

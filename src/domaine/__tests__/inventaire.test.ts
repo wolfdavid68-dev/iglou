@@ -203,14 +203,9 @@ describe('corbeille + ANNULER', () => {
 });
 
 test('état de synchronisation (bandeau hors ligne)', () => {
-  const base = { connecte: true, dejaConnecte: true, tentativesEchouees: 0, ecrituresEnAttente: 0 };
-  expect(etatSynchro(base)).toBe('synchronise');
-  expect(etatSynchro({ ...base, ecrituresEnAttente: 2 })).toBe('en-attente');
-  expect(etatSynchro({ ...base, connecte: false, ecrituresEnAttente: 2 })).toBe('hors-ligne');
-  // Démarrage : pas encore connecté, mais rien n'a échoué → pas de bandeau.
-  expect(etatSynchro({ ...base, connecte: false, dejaConnecte: false })).toBe('synchronise');
-  // Démarrage sans réseau : la première connexion échoue.
-  expect(etatSynchro({ ...base, connecte: false, dejaConnecte: false, tentativesEchouees: 1 })).toBe('hors-ligne');
+  expect(etatSynchro({ isWebSocketConnected: true, hasInflightRequests: false })).toBe('synchronise');
+  expect(etatSynchro({ isWebSocketConnected: true, hasInflightRequests: true })).toBe('en-attente');
+  expect(etatSynchro({ isWebSocketConnected: false, hasInflightRequests: true })).toBe('hors-ligne');
 });
 
 describe('« Déplacer vers… »', () => {

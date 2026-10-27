@@ -1,100 +1,76 @@
-import { api } from '../../convex/_generated/api';
-import type { ResultatRestauration } from '@/domaine/annulation';
+import { restaurerSiAbsent, type ResultatRestauration } from '@/domaine/annulation';
 import { planRangement } from '@/domaine/courses';
-import { nouvelId } from '@/domaine/ids';
 import type { Operation } from '@/domaine/import-export';
 import { nomsTiroirsParDefaut } from '@/domaine/inventaire';
-import { appliquerOperations, type DonneesServeur, type OperationInventaire } from '@/domaine/operations';
 import { arrondir } from '@/domaine/texte';
 import type { Aliment, Appareil, CourseLibre, Tiroir, TypeAppareil, Unite } from '@/domaine/types';
-import { convex } from './convex';
-import { auteurCourant } from './session';
+import { api, convex, nouvelId } from './convex';
+import { envoyer, type Op } from './lots';
 
-/** Qui écrit (le serveur vérifie de toute façon l'identité réelle). */
+/** Qui écrit (le serveur enregistre `modifiePar` d'après le compte connecté). */
 export interface Auteur {
   uid: string;
   prenom: string;
 }
 
-/**
- * Envoie des opérations au serveur, appliquées en une seule transaction.
- * Elles sont rejouées tout de suite sur les données locales : l'écran se met
- * à jour sans attendre le réseau. Hors ligne, l'envoi part au retour du réseau
- * (tant que l'app reste ouverte).
- */
-function ecrire(maisonId: string, operations: OperationInventaire[]) {
-  const auteur = auteurCourant();
-  return convex.mutation(
-    api.inventaire.appliquer,
-    { maisonId, operations },
-    {
-      optimisticUpdate: (store) => {
-        const d = store.getQuery(api.donnees.maison, { maisonId });
-        if (!d) return;
-        store.setQuery(api.donnees.maison, { maisonId }, appliquerOperations(d as DonneesServeur, operations, auteur, Date.now()) as typeof d);
-      },
-    },
-  );
-}
+const suppression = (col: 'appareils' | 'tiroirs' | 'aliments' | 'coursesLibres', id: string): Op => ({ op: 'delete', col, id });
 
 /* ---------------- Appareils ---------------- */
 
 export function creerAppareil(maisonId: string, nom: string, type: TypeAppareil, nombreTiroirs: number, ordre: number) {
   const appareilId = nouvelId();
-  const ecriture = ecrire(maisonId, [
-    { op: 'creerAppareil', id: appareilId, nom: nom.trim(), type, ordre },
-    ...nomsTiroirsParDefaut(nombreTiroirs).map((nomTiroir, i): OperationInventaire => ({ op: 'creerTiroir', id: nouvelId(), appareilId, nom: nomTiroir, ordre: i })),
-  ]);
-  return { appareilId, ecriture };
+  const ops: Op[] = [{ op: 'set', col: 'appareils', id: appareilId, d: { nom: nom.trim(), type, ordre } }];
+  nomsTiroirsParDefaut(nombreTiroirs).forEach((nomTiroir, i) => {
+    ops.push({ op: 'set', col: 'tiroirs', id: nouvelId(), d: { appareilId, nom: nomTiroir, ordre: i } });
+  });
+  return { appareilId, ecriture: envoyer(maisonId, ops) };
 }
 
 export function modifierAppareil(maisonId: string, appareil: Appareil, champs: Partial<Pick<Appareil, 'nom' | 'type' | 'ordre'>>) {
-  return ecrire(maisonId, [{ op: 'majAppareil', id: appareil.id, ...champs }]);
+  return envoyer(maisonId, [{ op: 'update', col: 'appareils', id: appareil.id, d: champs }]);
 }
 
 export function reordonnerAppareils(maisonId: string, appareils: Appareil[]) {
-  return ecrire(
-    maisonId,
-    appareils.flatMap((a, i): OperationInventaire[] => (a.ordre !== i ? [{ op: 'majAppareil', id: a.id, ordre: i }] : [])),
-  );
+  const ops = appareils.flatMap((a, i): Op[] => (a.ordre !== i ? [{ op: 'update', col: 'appareils', id: a.id, d: { ordre: i } }] : []));
+  return envoyer(maisonId, ops);
 }
 
-/** Supprime l'appareil, ses tiroirs et leur contenu (le serveur s'en charge). */
-export function supprimerAppareil(maisonId: string, appareil: Appareil) {
-  return ecrire(maisonId, [{ op: 'supprimerAppareil', id: appareil.id }]);
+export function supprimerAppareil(maisonId: string, appareil: Appareil, tiroirs: Tiroir[], aliments: Aliment[]) {
+  return envoyer(maisonId, [
+    ...aliments.filter((a) => a.appareilId === appareil.id).map((a) => suppression('aliments', a.id)),
+    ...tiroirs.filter((t) => t.appareilId === appareil.id).map((t) => suppression('tiroirs', t.id)),
+    suppression('appareils', appareil.id),
+  ]);
 }
 
 /* ---------------- Tiroirs ---------------- */
 
 export function ajouterTiroir(maisonId: string, appareilId: string, nom: string, ordre: number) {
-  return ecrire(maisonId, [{ op: 'creerTiroir', id: nouvelId(), appareilId, nom: nom.trim(), ordre }]);
+  return envoyer(maisonId, [{ op: 'set', col: 'tiroirs', id: nouvelId(), d: { appareilId, nom: nom.trim(), ordre } }]);
 }
 
 export function renommerTiroir(maisonId: string, tiroirId: string, nom: string) {
-  return ecrire(maisonId, [{ op: 'majTiroir', id: tiroirId, nom: nom.trim() }]);
+  return envoyer(maisonId, [{ op: 'update', col: 'tiroirs', id: tiroirId, d: { nom: nom.trim() } }]);
 }
 
 export function reordonnerTiroirs(maisonId: string, tiroirs: Tiroir[]) {
-  return ecrire(
-    maisonId,
-    tiroirs.flatMap((t, i): OperationInventaire[] => (t.ordre !== i ? [{ op: 'majTiroir', id: t.id, ordre: i }] : [])),
-  );
+  const ops = tiroirs.flatMap((t, i): Op[] => (t.ordre !== i ? [{ op: 'update', col: 'tiroirs', id: t.id, d: { ordre: i } }] : []));
+  return envoyer(maisonId, ops);
 }
 
 /**
  * Supprime un tiroir. Son contenu est soit déplacé vers `destination`, soit
  * supprimé (`destination` nul).
  */
-export function supprimerTiroir(maisonId: string, tiroir: Tiroir, contenu: Aliment[], destination: Tiroir | null) {
-  return ecrire(maisonId, [
-    ...contenu.map(
-      (a): OperationInventaire =>
-        destination
-          ? { op: 'majAliment', id: a.id, champs: { tiroirId: destination.id, appareilId: destination.appareilId } }
-          : { op: 'supprimerAliment', id: a.id },
-    ),
-    { op: 'supprimerTiroir', id: tiroir.id },
-  ]);
+export function supprimerTiroir(maisonId: string, tiroir: Tiroir, contenu: Aliment[], destination: Tiroir | null, auteur: Auteur) {
+  const ops: Op[] = contenu.map(
+    (a): Op =>
+      destination
+        ? { op: 'update', col: 'aliments', id: a.id, d: { tiroirId: destination.id, appareilId: destination.appareilId } }
+        : suppression('aliments', a.id),
+  );
+  ops.push(suppression('tiroirs', tiroir.id));
+  return envoyer(maisonId, ops);
 }
 
 /* ---------------- Aliments ---------------- */
@@ -112,15 +88,19 @@ export interface NouvelAliment {
 
 export function creerAliment(maisonId: string, a: NouvelAliment, auteur: Auteur) {
   const id = nouvelId();
-  const ecriture = ecrire(maisonId, [
+  const ecriture = envoyer(maisonId, [
     {
-      op: 'creerAliment',
+      op: 'set',
+      col: 'aliments',
       id,
-      ...a,
-      nom: a.nom.trim(),
-      dansPanier: false,
-      achatQuantite: null,
-      ajouteParPrenom: auteur.prenom.slice(0, 40) || 'Moi',
+      d: {
+        ...a,
+        nom: a.nom.trim(),
+        dansPanier: false,
+        achatQuantite: null,
+        ajoutePar: auteur.uid,
+        ajouteParPrenom: auteur.prenom.slice(0, 40) || 'Moi',
+      },
     },
   ]);
   return { id, ecriture };
@@ -135,131 +115,149 @@ export type ChampsAliment = Partial<
  * Quantité et maximum doivent être fournis ensemble quand l'un change
  * (voir `fixerQuantite` / `modifierMaximum`).
  */
-export function modifierAliment(maisonId: string, id: string, champs: ChampsAliment) {
-  return ecrire(maisonId, [{ op: 'majAliment', id, champs }]);
+export function modifierAliment(maisonId: string, id: string, champs: ChampsAliment, auteur: Auteur) {
+  return envoyer(maisonId, [{ op: 'update', col: 'aliments', id, d: champs }]);
 }
 
 /**
  * Baisse de stock (« − » ou « épuisé ») : met à jour l'aliment et note la
- * sortie dans l'historique (statistiques), dans la même transaction.
+ * sortie dans l'historique (statistiques), dans le même lot.
  */
-export function consommerAliment(maisonId: string, a: Aliment, nouvelleQuantite: number) {
-  const operations: OperationInventaire[] = [{ op: 'majAliment', id: a.id, champs: { quantite: nouvelleQuantite, quantiteMax: a.quantiteMax } }];
+export function consommerAliment(maisonId: string, a: Aliment, nouvelleQuantite: number, auteur: Auteur) {
+  const ops: Op[] = [{ op: 'update', col: 'aliments', id: a.id, d: { quantite: nouvelleQuantite, quantiteMax: a.quantiteMax } }];
   const sortie = arrondir(a.quantite - nouvelleQuantite);
-  if (sortie > 0) operations.push({ op: 'consommation', id: nouvelId(), nom: a.nom, quantite: sortie, unite: a.unite, appareilId: a.appareilId });
-  return ecrire(maisonId, operations);
+  if (sortie > 0) {
+    ops.push({ op: 'set', col: 'consommations', id: nouvelId(), d: { nom: a.nom, quantite: sortie, unite: a.unite, appareilId: a.appareilId } });
+  }
+  return envoyer(maisonId, ops);
 }
 
-export function deplacerAliment(maisonId: string, aliment: Aliment, cible: Tiroir) {
-  return modifierAliment(maisonId, aliment.id, { tiroirId: cible.id, appareilId: cible.appareilId });
+export function deplacerAliment(maisonId: string, aliment: Aliment, cible: Tiroir, auteur: Auteur) {
+  return modifierAliment(maisonId, aliment.id, { tiroirId: cible.id, appareilId: cible.appareilId }, auteur);
 }
 
 export function supprimerAliment(maisonId: string, id: string) {
-  return ecrire(maisonId, [{ op: 'supprimerAliment', id }]);
+  return envoyer(maisonId, [suppression('aliments', id)]);
 }
 
-/**
- * Réinsère un aliment supprimé avec le même id et les mêmes données. Si l'id
- * existe déjà (autre membre, double appui), le serveur ne fait rien.
- */
-export async function restaurerAliment(maisonId: string, a: Aliment, auteur: Auteur): Promise<ResultatRestauration> {
-  const { dejaPresents } = await ecrire(maisonId, [
-    {
-      op: 'creerAliment',
-      id: a.id,
-      tiroirId: a.tiroirId,
-      appareilId: a.appareilId,
-      nom: a.nom,
-      quantite: a.quantite,
-      quantiteMax: a.quantiteMax,
-      unite: a.unite,
-      datePeremption: a.datePeremption,
-      note: a.note,
-      dansPanier: a.dansPanier,
-      achatQuantite: a.achatQuantite,
-      ...(a.ajoutePar && { ajoutePar: a.ajoutePar }),
-      ajouteParPrenom: a.ajouteParPrenom || auteur.prenom,
-      ...(a.createdAt != null && { createdAt: a.createdAt }),
-      siAbsent: true,
+/** Réinsère un aliment supprimé avec le même id et les mêmes données. */
+export function restaurerAliment(maisonId: string, a: Aliment, auteur: Auteur): Promise<ResultatRestauration> {
+  return restaurerSiAbsent(
+    async () => {
+      const donnees = convex.watchQuery(api.donnees.maison, { maison: maisonId }).localQueryResult();
+      return donnees?.aliments.some((x) => x.id === a.id) ?? false;
     },
-  ]);
-  return dejaPresents.includes(a.id) ? 'existe-deja' : 'restaure';
+    async () => {
+      // Pas d'attente du serveur : la restauration apparaît tout de suite, même hors ligne.
+      envoyer(maisonId, [
+        {
+          op: 'set',
+          col: 'aliments',
+          id: a.id,
+          d: {
+            tiroirId: a.tiroirId,
+            appareilId: a.appareilId,
+            nom: a.nom,
+            quantite: a.quantite,
+            quantiteMax: a.quantiteMax,
+            unite: a.unite,
+            datePeremption: a.datePeremption,
+            note: a.note,
+            dansPanier: a.dansPanier,
+            achatQuantite: a.achatQuantite,
+            ajoutePar: a.ajoutePar,
+            ajouteParPrenom: a.ajouteParPrenom || auteur.prenom,
+            ...(a.createdAt != null ? { createdAt: a.createdAt } : {}),
+          },
+        },
+      ]).catch(() => {});
+    },
+  );
 }
 
 /* ---------------- Courses ---------------- */
 
-export function ajouterLibre(maisonId: string, nom: string, quantite: number, unite: Unite) {
-  return ecrire(maisonId, [{ op: 'creerLibre', id: nouvelId(), nom: nom.trim(), quantite, unite }]);
+const nouveauLibre = (nom: string, quantite: number, unite: Unite, auteur: Auteur): Op => ({
+  op: 'set',
+  col: 'coursesLibres',
+  id: nouvelId(),
+  d: { nom: nom.trim(), quantite, unite, dansPanier: false, ajoutePar: auteur.uid },
+});
+
+export function ajouterLibre(maisonId: string, nom: string, quantite: number, unite: Unite, auteur: Auteur) {
+  return envoyer(maisonId, [nouveauLibre(nom, quantite, unite, auteur)]);
 }
 
 /** Plusieurs articles d'un coup (ingrédients manquants d'une recette), 1 pièce chacun. */
-export function ajouterLibres(maisonId: string, noms: string[]) {
-  return ecrire(
+export function ajouterLibres(maisonId: string, noms: string[], auteur: Auteur) {
+  return envoyer(
     maisonId,
-    noms.map((nom): OperationInventaire => ({ op: 'creerLibre', id: nouvelId(), nom: nom.trim(), quantite: 1, unite: 'pièce' })),
+    noms.map((nom) => nouveauLibre(nom, 1, 'pièce', auteur)),
   );
 }
 
 export function modifierLibre(maisonId: string, id: string, champs: Partial<Pick<CourseLibre, 'nom' | 'quantite' | 'unite' | 'dansPanier'>>) {
-  return ecrire(maisonId, [{ op: 'majLibre', id, champs }]);
+  return envoyer(maisonId, [{ op: 'update', col: 'coursesLibres', id, d: champs }]);
 }
 
 export function supprimerLibre(maisonId: string, id: string) {
-  return ecrire(maisonId, [{ op: 'supprimerLibre', id }]);
+  return envoyer(maisonId, [suppression('coursesLibres', id)]);
 }
 
 /**
  * « J'ai rangé les courses » : remet en stock les aliments cochés et retire
  * les articles libres cochés de la liste.
  */
-export function rangerCourses(maisonId: string, aliments: Aliment[], libres: CourseLibre[]) {
+export function rangerCourses(maisonId: string, aliments: Aliment[], libres: CourseLibre[], auteur: Auteur) {
   const plan = planRangement(aliments, libres);
-  return ecrire(maisonId, [
-    ...plan.aliments.map(({ id, ...champs }): OperationInventaire => ({ op: 'majAliment', id, champs })),
-    ...plan.libres.map((l): OperationInventaire => ({ op: 'supprimerLibre', id: l.id })),
+  return envoyer(maisonId, [
+    ...plan.aliments.map(({ id, ...champs }): Op => ({ op: 'update', col: 'aliments', id, d: champs })),
+    ...plan.libres.map((l) => suppression('coursesLibres', l.id)),
   ]);
 }
 
 /* ---------------- Import ---------------- */
 
-/** Applique un plan d'import en une seule transaction : tout ou rien. */
 export function appliquerImport(maisonId: string, operations: Operation[], auteur: Auteur) {
-  return ecrire(
+  return envoyer(
     maisonId,
-    operations.map((op): OperationInventaire => {
+    operations.map((op): Op => {
       switch (op.op) {
         case 'supprimer':
-          return op.collection === 'appareils'
-            ? { op: 'supprimerAppareil', id: op.id }
-            : op.collection === 'tiroirs'
-              ? { op: 'supprimerTiroir', id: op.id }
-              : op.collection === 'aliments'
-                ? { op: 'supprimerAliment', id: op.id }
-                : { op: 'supprimerLibre', id: op.id };
+          return suppression(op.collection, op.id);
         case 'creerAppareil':
-          return { op: 'creerAppareil', id: op.id, nom: op.nom, type: op.type, ordre: op.ordre };
+          return { op: 'set', col: 'appareils', id: op.id, d: { nom: op.nom, type: op.type, ordre: op.ordre } };
         case 'creerTiroir':
-          return { op: 'creerTiroir', id: op.id, appareilId: op.appareilId, nom: op.nom, ordre: op.ordre };
+          return { op: 'set', col: 'tiroirs', id: op.id, d: { appareilId: op.appareilId, nom: op.nom, ordre: op.ordre } };
         case 'creerAliment':
           return {
-            op: 'creerAliment',
+            op: 'set',
+            col: 'aliments',
             id: op.id,
-            tiroirId: op.tiroirId,
-            appareilId: op.appareilId,
-            nom: op.aliment.nom,
-            quantite: op.aliment.quantite,
-            quantiteMax: op.aliment.quantiteMax,
-            unite: op.aliment.unite,
-            datePeremption: op.aliment.datePeremption,
-            note: op.aliment.note,
-            dansPanier: false,
-            achatQuantite: null,
-            ajouteParPrenom: auteur.prenom.slice(0, 40) || 'Moi',
+            d: {
+              tiroirId: op.tiroirId,
+              appareilId: op.appareilId,
+              nom: op.aliment.nom,
+              quantite: op.aliment.quantite,
+              quantiteMax: op.aliment.quantiteMax,
+              unite: op.aliment.unite,
+              datePeremption: op.aliment.datePeremption,
+              note: op.aliment.note,
+              dansPanier: false,
+              achatQuantite: null,
+              ajoutePar: auteur.uid,
+              ajouteParPrenom: auteur.prenom.slice(0, 40) || 'Moi',
+            },
           };
         case 'majMaxAliment':
-          return { op: 'majAliment', id: op.id, champs: { quantiteMax: op.quantiteMax } };
+          return { op: 'update', col: 'aliments', id: op.id, d: { quantiteMax: op.quantiteMax } };
         case 'creerLibre':
-          return { op: 'creerLibre', id: op.id, nom: op.nom, quantite: op.quantite, unite: op.unite };
+          return {
+            op: 'set',
+            col: 'coursesLibres',
+            id: op.id,
+            d: { nom: op.nom, quantite: op.quantite, unite: op.unite, dansPanier: false, ajoutePar: auteur.uid },
+          };
       }
     }),
   );

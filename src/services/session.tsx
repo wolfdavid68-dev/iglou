@@ -1,25 +1,24 @@
 import { ConvexAuthProvider, useAuthActions } from '@convex-dev/auth/react';
 import { useConvexAuth, useQuery } from 'convex/react';
-import { createContext, use, useEffect, useState, type ReactNode } from 'react';
+import { ConvexError } from 'convex/values';
+import * as SecureStore from 'expo-secure-store';
+import { createContext, use, useEffect, type ReactNode } from 'react';
+import { Platform } from 'react-native';
 
-import { api } from '../../convex/_generated/api';
-import { convex } from './convex';
+import { api, convex } from './convex';
 import { codeErreur } from './erreurs';
-import { stockageJetons } from './jetons';
-import { stockage } from './stockage';
 
 /**
- * Comptes : Convex Auth (e-mail + mot de passe). Les jetons sont gardés sur
- * l'appareil ; le dernier utilisateur connu aussi, pour ouvrir l'app hors ligne.
+ * Comptes : Convex Auth (e-mail + mot de passe). Les comptes repris de
+ * Firebase gardent leur uid et leur mot de passe (voir convex/motsDePasse.ts).
  */
 
-export interface Utilisateur {
+interface Utilisateur {
   uid: string;
   email: string;
 }
 
 interface Session {
-  /** Vrai seulement au démarrage, tant qu'on ne sait pas si quelqu'un est connecté. */
   chargement: boolean;
   utilisateur: Utilisateur | null;
   /** Prénom affiché aux autres membres. */
@@ -28,76 +27,51 @@ interface Session {
 
 const SessionContexte = createContext<Session>({ chargement: true, utilisateur: null, prenom: '' });
 
-type ConnuLocalement = Utilisateur & { prenom: string };
-const CLE_SESSION = 'session';
+/** Jeton de connexion : trousseau sécurisé sur téléphone, stockage du navigateur sur le web. */
+const stockageJetons =
+  Platform.OS === 'ios' || Platform.OS === 'android'
+    ? { getItem: SecureStore.getItemAsync, setItem: SecureStore.setItemAsync, removeItem: SecureStore.deleteItemAsync }
+    : undefined;
 
-function lireSession(): ConnuLocalement | null {
-  try {
-    const brut = stockage.lire(CLE_SESSION);
-    return brut ? (JSON.parse(brut) as ConnuLocalement) : null;
-  } catch {
-    return null;
-  }
-}
-
-function ecrireSession(s: ConnuLocalement | null) {
-  try {
-    if (s) stockage.ecrire(CLE_SESSION, JSON.stringify(s));
-    else stockage.effacer(CLE_SESSION);
-  } catch {
-    // Facultatif : sans ce souvenir, l'app attend simplement le serveur au démarrage.
-  }
-}
-
-/** Actions de connexion et utilisateur courant, disponibles hors des composants. */
+// Les écrans appellent inscrire()/connecter()… comme de simples fonctions :
+// on garde ici les actions fournies par Convex Auth et l'uid courant.
 let actions: ReturnType<typeof useAuthActions> | null = null;
-let auteur = { uid: '', prenom: '' };
+let uidActuel = '';
 
-/** Qui écrit, pour l'affichage immédiat des modifications (le serveur vérifie l'identité réelle). */
-export const auteurCourant = () => auteur;
+/** uid du compte connecté (chaîne vide si personne). */
+export const uidCourant = () => uidActuel;
 
-export function SessionProvider({ children }: { children: ReactNode }) {
-  return (
-    // shouldHandleCode : le paramètre `code` des liens d'invitation n'est pas un code de connexion.
-    <ConvexAuthProvider client={convex} storage={stockageJetons} shouldHandleCode={false}>
-      <SessionInterne>{children}</SessionInterne>
-    </ConvexAuthProvider>
-  );
+function actionsAuth() {
+  if (!actions) throw new Error('Session pas encore prête.');
+  return actions;
 }
 
 function SessionInterne({ children }: { children: ReactNode }) {
-  const authActions = useAuthActions();
+  const a = useAuthActions();
   const { isLoading, isAuthenticated } = useConvexAuth();
-  const moi = useQuery(api.profils.moi, isAuthenticated ? {} : 'skip');
-  const [connu, setConnu] = useState<ConnuLocalement | null>(lireSession);
-  const [demarre, setDemarre] = useState(connu !== null);
+  const moi = useQuery(api.utilisateurs.moiCourant, isAuthenticated ? {} : 'skip');
 
   useEffect(() => {
-    actions = authActions;
-  }, [authActions]);
+    actions = a;
+  }, [a]);
 
-  // Souvenir local mis à jour à chaque réponse du serveur, effacé à la déconnexion.
-  const deconnecte = !isLoading && (!isAuthenticated || moi === null);
-  const versionServeur = moi ? { uid: moi.uid, email: moi.email, prenom: moi.prenom } : null;
-  const aJour = JSON.stringify(versionServeur) === JSON.stringify(connu);
-  if (versionServeur && !aJour) setConnu(versionServeur);
-  if (deconnecte && connu) setConnu(null);
-  if (!demarre && (deconnecte || moi)) setDemarre(true);
-
+  const utilisateur = isAuthenticated && moi ? { uid: moi.uid, email: moi.email } : null;
   useEffect(() => {
-    if (!isLoading) ecrireSession(connu);
-  }, [connu, isLoading]);
+    uidActuel = utilisateur?.uid ?? '';
+  }, [utilisateur?.uid]);
 
-  // Pendant la connexion au serveur (démarrage, hors ligne), le dernier utilisateur connu reste affiché.
-  const courant = moi ?? (deconnecte ? null : connu);
-  const utilisateur = courant ? { uid: courant.uid, email: courant.email } : null;
-  const prenom = courant?.prenom ?? '';
+  // Connecté mais profil pas encore reçu : on attend plutôt que d'afficher l'écran de connexion.
+  const chargement = isLoading || (isAuthenticated && moi === undefined);
 
-  useEffect(() => {
-    auteur = { uid: courant?.uid ?? '', prenom: courant?.prenom ?? '' };
-  }, [courant?.uid, courant?.prenom]);
+  return <SessionContexte value={{ chargement, utilisateur, prenom: moi?.prenom ?? '' }}>{children}</SessionContexte>;
+}
 
-  return <SessionContexte value={{ chargement: !demarre, utilisateur, prenom }}>{children}</SessionContexte>;
+export function SessionProvider({ children }: { children: ReactNode }) {
+  return (
+    <ConvexAuthProvider client={convex} storage={stockageJetons}>
+      <SessionInterne>{children}</SessionInterne>
+    </ConvexAuthProvider>
+  );
 }
 
 export function useSession() {
@@ -111,48 +85,47 @@ export function useMoi(): { uid: string; email: string; prenom: string } {
   return { uid: utilisateur.uid, email: utilisateur.email, prenom: prenom || 'Moi' };
 }
 
-/* ---------------------------------------------------------------------------
- * Actions (les erreurs portent un `code` du type « auth/… », voir erreurs.ts)
- * ------------------------------------------------------------------------- */
-
-function exigerActions() {
-  if (!actions) throw Object.assign(new Error('Connexion pas encore prête.'), { code: 'auth/network-request-failed' });
-  return actions;
-}
-
-async function avecCode<T>(f: () => Promise<T>): Promise<T> {
+/**
+ * En production, Convex masque le texte des erreurs de Convex Auth (le client
+ * ne reçoit que « Server Error »). Une erreur non reconnue reçoit donc le code
+ * le plus probable pour l'étape en cours (mauvais mot de passe, code expiré…).
+ */
+async function signInPassword(codeSiMasquee: string, params: Record<string, string>) {
   try {
-    return await f();
+    await actionsAuth().signIn('password', params);
   } catch (e) {
-    throw Object.assign(new Error(codeErreur(e) || 'erreur'), { code: codeErreur(e), cause: e });
+    if (!(e instanceof ConvexError) && codeErreur(e) === '') throw new ConvexError({ code: codeSiMasquee });
+    throw e;
   }
 }
 
-export function inscrire(email: string, motDePasse: string, prenom: string) {
-  return avecCode(() => exigerActions().signIn('password', { flow: 'signUp', email: email.trim(), password: motDePasse, name: prenom.trim() }));
+export async function inscrire(email: string, motDePasse: string, prenom: string) {
+  await signInPassword('compte-existant', { email: email.trim(), password: motDePasse, prenom: prenom.trim(), flow: 'signUp' });
 }
 
-export function connecter(email: string, motDePasse: string) {
-  return avecCode(() => exigerActions().signIn('password', { flow: 'signIn', email: email.trim(), password: motDePasse }));
+export async function connecter(email: string, motDePasse: string) {
+  await signInPassword('identifiants', { email: email.trim(), password: motDePasse, flow: 'signIn' });
 }
 
-/** Étape 1 : un code à 8 chiffres part par e-mail. */
-export function demanderCodeMotDePasse(email: string) {
-  return avecCode(() => exigerActions().signIn('password', { flow: 'reset', email: email.trim() }));
+/** Mot de passe oublié, étape 1 : envoie un code à 8 chiffres par e-mail. */
+export async function envoyerCodeReinitialisation(email: string) {
+  await signInPassword('identifiants', { email: email.trim(), flow: 'reset' });
 }
 
-/** Étape 2 : le code et le nouveau mot de passe. L'utilisateur est ensuite connecté. */
-export function choisirNouveauMotDePasse(email: string, code: string, nouveau: string) {
-  return avecCode(() =>
-    exigerActions().signIn('password', { flow: 'reset-verification', email: email.trim(), code: code.trim(), newPassword: nouveau }),
-  );
+/** Étape 2 : le code reçu et le nouveau mot de passe. Connecte l'utilisateur. */
+export async function reinitialiserMotDePasse(email: string, code: string, nouveauMotDePasse: string) {
+  await signInPassword('code-reinitialisation', {
+    email: email.trim(),
+    code: code.replace(/\s/g, ''),
+    newPassword: nouveauMotDePasse,
+    flow: 'reset-verification',
+  });
 }
 
-/** Mon prénom, partout : profil et affichage dans toutes mes maisons. */
-export function changerPrenom(prenom: string) {
-  return convex.mutation(api.profils.changerPrenom, { prenom: prenom.trim() });
+export async function changerPrenom(_uid: string, prenom: string) {
+  await convex.mutation(api.utilisateurs.changerPrenom, { prenom: prenom.trim() });
 }
 
-export function deconnecter() {
-  return exigerActions().signOut();
+export async function deconnecter() {
+  await actionsAuth().signOut();
 }

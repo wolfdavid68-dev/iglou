@@ -8,19 +8,18 @@
  * @module
  */
 
+import type * as acces from "../acces.js";
 import type * as auth from "../auth.js";
 import type * as compte from "../compte.js";
-import type * as consommations from "../consommations.js";
+import type * as courriel from "../courriel.js";
 import type * as donnees from "../donnees.js";
 import type * as http from "../http.js";
-import type * as inventaire from "../inventaire.js";
-import type * as lib from "../lib.js";
+import type * as lots from "../lots.js";
 import type * as maisons from "../maisons.js";
 import type * as motsDePasse from "../motsDePasse.js";
-import type * as profils from "../profils.js";
 import type * as signalements from "../signalements.js";
 import type * as transfert from "../transfert.js";
-import type * as validateurs from "../validateurs.js";
+import type * as utilisateurs from "../utilisateurs.js";
 
 import type {
   ApiFromModules,
@@ -29,19 +28,18 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  acces: typeof acces;
   auth: typeof auth;
   compte: typeof compte;
-  consommations: typeof consommations;
+  courriel: typeof courriel;
   donnees: typeof donnees;
   http: typeof http;
-  inventaire: typeof inventaire;
-  lib: typeof lib;
+  lots: typeof lots;
   maisons: typeof maisons;
   motsDePasse: typeof motsDePasse;
-  profils: typeof profils;
   signalements: typeof signalements;
   transfert: typeof transfert;
-  validateurs: typeof validateurs;
+  utilisateurs: typeof utilisateurs;
 }>;
 
 /**
@@ -70,6 +68,4 @@ export declare const internal: FilterApi<
   FunctionReference<any, "internal">
 >;
 
-export declare const components: {
-  staticHosting: import("@convex-dev/static-hosting/_generated/component.js").ComponentApi<"staticHosting">;
-};
+export declare const components: {};

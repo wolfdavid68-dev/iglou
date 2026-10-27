@@ -12,7 +12,7 @@ import { useMoi } from '@/services/session';
 export default function RejoindreMaison() {
   const moi = useMoi();
   const params = useLocalSearchParams<{ code?: string }>();
-  const { choisirMaison } = useMaisons();
+  const { adhesions, choisirMaison } = useMaisons();
   const [code, setCode] = useState(params.code ? normaliserCode(params.code) : '');
   const [erreur, setErreur] = useState<string | null>(null);
   const [envoi, setEnvoi] = useState(false);
@@ -21,7 +21,7 @@ export default function RejoindreMaison() {
     setErreur(null);
     setEnvoi(true);
     try {
-      const r = await rejoindreMaison(code, moi.prenom);
+      const r = await rejoindreMaison(code, moi.uid, moi.prenom, adhesions);
       if (!r.ok) {
         setErreur(r.message);
         setEnvoi(false);
