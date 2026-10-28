@@ -380,7 +380,7 @@ function FeuilleQuantite({
             <Texte poids="moyen" ton="secondaire" className="text-sm">
               {a.genre === 'aliment' ? 'Quantité achetée' : 'Quantité'}
             </Texte>
-            <Compteur libelle="quantité achetée" valeur={q} onChange={setQ} min={pas} pas={pas} suffixe={suffixe} />
+            <Compteur libelle="quantité achetée" valeur={q} onChange={setQ} min={pas} minSaisie={0.001} pas={pas} suffixe={suffixe} />
             {a.genre === 'aliment' && q > a.manque ? (
               <Texte ton="discret" className="text-center text-sm">
                 Plus que prévu : le stock plein passera à {formaterQuantite(a.aliment.quantite + q, a.unite)}.

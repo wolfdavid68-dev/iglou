@@ -95,18 +95,9 @@ function Formulaire({ existant, tiroirInitial, libre, file }: { existant?: Alime
 
   const changerQuantite = (q: number) => setStock((s) => (existant ? fixerQuantite(s, q) : stockInitial(q)));
 
-  const changerMaximum = async (max: number) => {
-    if (!(max > 0)) return;
-    const r = modifierMaximum(stock, max);
-    if (r.quantiteReduite) {
-      const ok = await confirmer(
-        'Baisser le stock plein ?',
-        `La quantité actuelle (${stock.quantite}) dépasse ${max}. Elle sera ramenée à ${max}.`,
-        'Baisser',
-      );
-      if (!ok) return;
-    }
-    setStock({ quantite: r.quantite, quantiteMax: r.quantiteMax });
+  // Le stock plein se tape chiffre par chiffre : la quantité n'est ramenée qu'à l'enregistrement.
+  const changerMaximum = (max: number) => {
+    if (max > 0) setStock((s) => ({ ...s, quantiteMax: max }));
   };
 
   const changerTiroir = async () => {
@@ -138,11 +129,24 @@ function Formulaire({ existant, tiroirInitial, libre, file }: { existant?: Alime
     setErreurs(e);
     if (e.nom || e.date) return;
 
+    // Taper une quantité relève le stock plein ; s'il est encore en dessous, c'est qu'on l'a baissé ensuite.
+    let { quantite, quantiteMax } = stock;
+    if (existant && quantite > quantiteMax) {
+      const r = modifierMaximum(stock, quantiteMax);
+      const ok = await confirmer(
+        'Baisser le stock plein ?',
+        `La quantité actuelle (${quantite}) dépasse ${quantiteMax}. Elle sera ramenée à ${quantiteMax}.`,
+        'Baisser',
+      );
+      if (!ok) return;
+      ({ quantite, quantiteMax } = r);
+    }
+
     const champs = {
       nom: propre,
       unite,
-      quantite: stock.quantite,
-      quantiteMax: Math.max(stock.quantiteMax, stock.quantite),
+      quantite,
+      quantiteMax: Math.max(quantiteMax, quantite),
       datePeremption,
       note: note.trim() ? note.trim().slice(0, 200) : null,
     };
@@ -273,6 +277,7 @@ function Formulaire({ existant, tiroirInitial, libre, file }: { existant?: Alime
             valeur={stock.quantiteMax}
             onChange={changerMaximum}
             min={pas}
+            minSaisie={0.001}
             pas={pas}
             suffixe={unite === 'pièce' || unite === 'portion' ? undefined : unite}
           />
