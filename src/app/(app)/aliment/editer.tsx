@@ -4,11 +4,12 @@ import { Pressable, Text, View } from 'react-native';
 
 import { texteStock } from '@/composants/aliment';
 import { EcranFormulaire } from '@/composants/formulaire';
-import { Bouton, Carte, Champ, Compteur, EnTete, EtatVide, Segments, Texte } from '@/composants/ui';
+import { Bouton, Carte, Champ, Compteur, EnTete, EtatVide, Libelle, Puce, Segments, Texte } from '@/composants/ui';
 import { formaterDateCourte, lireDateSaisie, versDateISO } from '@/domaine/dates';
 import { emojiPourNom } from '@/domaine/emoji';
 import { suggestionsNoms, tiroirParDefaut, trouverDoublon } from '@/domaine/inventaire';
 import { ajouterALExistant, fixerQuantite, modifierMaximum, pasPourUnite, stockInitial } from '@/domaine/quantites';
+import { suffixeUnite } from '@/domaine/texte';
 import { UNITES, type Aliment, type CourseLibre, type Tiroir, type Unite } from '@/domaine/types';
 import { choisirTiroir } from '@/services/actions-aliment';
 import { confirmer, demander } from '@/services/dialogue';
@@ -213,20 +214,16 @@ function Formulaire({ existant, tiroirInitial, libre, file }: { existant?: Alime
       {suggestions.length > 0 && (
         <View className="flex-row flex-wrap gap-2">
           {suggestions.map((s) => (
-            <Pressable
+            <Puce
               key={s}
-              accessibilityRole="button"
+              emoji={emojiPourNom(s)}
+              libelle={s}
               accessibilityLabel={`Suggestion : ${s}`}
               onPress={() => {
                 setNom(s);
                 setFocusNom(false);
               }}
-              className="min-h-12 flex-row items-center gap-1 rounded-full border border-bordure bg-carte px-4 active:bg-carte-enfoncee">
-              <Text>{emojiPourNom(s)}</Text>
-              <Texte className="text-sm" numberOfLines={1}>
-                {s}
-              </Texte>
-            </Pressable>
+            />
           ))}
         </View>
       )}
@@ -241,9 +238,7 @@ function Formulaire({ existant, tiroirInitial, libre, file }: { existant?: Alime
       )}
 
       <View className="gap-1.5">
-        <Texte poids="moyen" ton="secondaire" className="text-sm">
-          Emplacement
-        </Texte>
+        <Libelle>Emplacement</Libelle>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Emplacement : ${appareil?.nom ?? ''}, ${tiroir.nom}. Changer`}
@@ -258,20 +253,16 @@ function Formulaire({ existant, tiroirInitial, libre, file }: { existant?: Alime
         </Pressable>
       </View>
 
-      <Segments libelle="Unité" options={OPTIONS_UNITES} valeur={unite} onChange={setUnite} />
+      <Segments libelle="Unité" options={OPTIONS_UNITES} valeur={unite} onChange={setUnite} teinte={appareil?.type ?? 'frigo'} />
 
       <View className="gap-1.5">
-        <Texte poids="moyen" ton="secondaire" className="text-sm">
-          Quantité
-        </Texte>
-        <Compteur libelle="quantité" valeur={stock.quantite} onChange={changerQuantite} pas={pas} suffixe={unite === 'pièce' || unite === 'portion' ? undefined : unite} />
+        <Libelle>Quantité</Libelle>
+        <Compteur libelle="quantité" valeur={stock.quantite} onChange={changerQuantite} pas={pas} suffixe={suffixeUnite(unite)} />
       </View>
 
       {existant ? (
         <View className="gap-1.5">
-          <Texte poids="moyen" ton="secondaire" className="text-sm">
-            Stock plein
-          </Texte>
+          <Libelle>Stock plein</Libelle>
           <Compteur
             libelle="stock plein"
             valeur={stock.quantiteMax}
@@ -279,7 +270,7 @@ function Formulaire({ existant, tiroirInitial, libre, file }: { existant?: Alime
             min={pas}
             minSaisie={0.001}
             pas={pas}
-            suffixe={unite === 'pièce' || unite === 'portion' ? undefined : unite}
+            suffixe={suffixeUnite(unite)}
           />
           <Texte ton="discret" className="text-sm">
             Ce qui manque pour revenir au stock plein part dans la liste de courses.
@@ -306,9 +297,9 @@ function Formulaire({ existant, tiroirInitial, libre, file }: { existant?: Alime
         />
         <View className="flex-row flex-wrap gap-2">
           {raccourcisDate.map((r) => (
-            <Pressable
+            <Puce
               key={r.libelle}
-              accessibilityRole="button"
+              libelle={r.libelle}
               accessibilityLabel={`Péremption dans ${r.libelle}`}
               onPress={() => {
                 const d = new Date();
@@ -316,20 +307,9 @@ function Formulaire({ existant, tiroirInitial, libre, file }: { existant?: Alime
                 setDate(formaterDateCourte(versDateISO(d)));
                 setErreurs((e) => ({ ...e, date: undefined }));
               }}
-              className="min-h-12 justify-center rounded-full border border-bordure bg-carte px-4 active:bg-carte-enfoncee">
-              <Texte className="text-sm">{r.libelle}</Texte>
-            </Pressable>
+            />
           ))}
-          {date ? (
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => setDate('')}
-              className="min-h-12 justify-center rounded-full px-4 active:bg-carte-enfoncee">
-              <Texte ton="secondaire" className="text-sm">
-                Effacer
-              </Texte>
-            </Pressable>
-          ) : null}
+          {date ? <Puce discrete libelle="Effacer" onPress={() => setDate('')} /> : null}
         </View>
       </View>
 

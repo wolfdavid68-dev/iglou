@@ -3,7 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Fragment } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
-import { Bouton, Carte, EnTete, EtatVide, Ligne, Pastille, Separateur, Texte, TitreSection } from '@/composants/ui';
+import { Bouton, Carte, Encart, EnTete, EtatVide, Ligne, Pastille, Separateur, Texte, TitreSection } from '@/composants/ui';
 import { etatPeremption } from '@/domaine/dates';
 import {
   LIBELLES_CATEGORIE,
@@ -57,13 +57,13 @@ export default function FicheRecette() {
 
   return (
     <View className="flex-1 bg-fond">
-      <EnTete titre={recette.nom} sousTitre={LIBELLES_CATEGORIE[recette.categorie]} />
+      <EnTete titre={LIBELLES_CATEGORIE[recette.categorie]} />
       <ScrollView contentContainerClassName="px-4 pb-10">
-        <Carte className="items-center gap-3 p-5">
+        <Carte className="items-center gap-3 p-4">
           <Text className="text-6xl" accessible={false}>
             {recette.emoji}
           </Text>
-          <Texte poids="gras" className="text-center text-xl">
+          <Texte poids="gras" className="text-center text-xl" accessibilityRole="header">
             {recette.nom}
           </Texte>
           <View className="flex-row flex-wrap justify-center gap-2">
@@ -76,12 +76,12 @@ export default function FicheRecette() {
             />
           </View>
           {s.urgents.length > 0 ? (
-            <View className="w-full flex-row items-center gap-3 rounded-2xl bg-orange-pale p-3">
-              <Texte className="text-2xl">♻️</Texte>
-              <Texte ton="secondaire" className="flex-1 text-sm">
-                Parfait pour finir {s.urgents.map((a) => a.nom).join(', ')} avant qu’il ne soit trop tard.
-              </Texte>
-            </View>
+            <Encart
+              compact
+              emoji="♻️"
+              texte={`Parfait pour finir ${s.urgents.map((a) => a.nom).join(', ')} avant qu’il ne soit trop tard.`}
+              className="w-full"
+            />
           ) : null}
         </Carte>
 
@@ -100,13 +100,13 @@ export default function FicheRecette() {
             <Bouton
               titre={`Ajouter ${aAjouter.length === 1 ? 'le manquant' : `les ${aAjouter.length} manquants`} aux courses`}
               icone="cart"
-              fond="bg-courses"
+              fond="bg-courses-fort"
               onPress={ajouterAuxCourses}
               className="mt-3"
             />
           ) : (
-            <View className="mt-3 flex-row items-center justify-center gap-2 rounded-2xl bg-courses-pale p-3">
-              <Ionicons name="cart" size={18} color={c.courses} />
+            <View className="mt-3 flex-row items-center justify-center gap-2 rounded-2xl bg-courses-pale p-4">
+              <Ionicons name="cart" size={18} color={c.coursesTexte} />
               <Texte ton="courses" poids="moyen" className="text-sm">
                 Déjà dans la liste de courses
               </Texte>
@@ -152,7 +152,7 @@ function LigneIngredient({ ligne: l, emplacement }: { ligne: LigneRecette; empla
     return (
       <Ligne
         icone="checkmark-circle"
-        couleurIcone={c.vert}
+        couleurIcone={c.vertTexte}
         titre={titre}
         sousTitre={`${aliment.nom} · ${emplacement}`}
         onPress={() => router.push({ pathname: '/aliment/[id]', params: { id: aliment.id } })}
@@ -167,7 +167,7 @@ function LigneIngredient({ ligne: l, emplacement }: { ligne: LigneRecette; empla
   return (
     <Ligne
       icone={ingredient.optionnel ? 'ellipse-outline' : 'close-circle'}
-      couleurIcone={ingredient.optionnel ? c.encre3 : c.courses}
+      couleurIcone={ingredient.optionnel ? c.encre3 : c.coursesTexte}
       titre={titre}
       sousTitre={ingredient.optionnel ? 'Facultatif' : 'À acheter'}
     />

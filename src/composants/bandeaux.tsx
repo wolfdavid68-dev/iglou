@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Annulable } from '@/domaine/annulation';
 import { abonnerMessages, annulation, fermerMessage, messageCourant, type Message } from '@/services/retours';
+import { useCouleurs } from '@/theme';
 import { Texte } from './ui';
 
 /**
@@ -15,6 +16,7 @@ import { Texte } from './ui';
  */
 export function BandeauBas({ decalage = 0 }: { decalage?: number }) {
   const insets = useSafeAreaInsets();
+  const c = useCouleurs();
   const [annulable, setAnnulable] = useState<Annulable | null>(annulation.courant);
   const [message, setMessage] = useState<Message | null>(messageCourant);
 
@@ -39,7 +41,7 @@ export function BandeauBas({ decalage = 0 }: { decalage?: number }) {
           accessibilityRole="button"
           onPress={() => annulation.annuler(annulable.id)}
           className="min-h-12 justify-center rounded-2xl px-4 active:opacity-70">
-          <Texte poids="gras" ton="courses" className="text-base">
+          <Texte poids="gras" ton="aucun" className="text-base text-courses-inverse">
             ANNULER
           </Texte>
         </Pressable>
@@ -55,14 +57,14 @@ export function BandeauBas({ decalage = 0 }: { decalage?: number }) {
         exiting={FadeOutDown.duration(150)}
         style={{ bottom: bas }}
         className={`absolute left-4 right-4 min-h-12 flex-row items-center gap-3 rounded-2xl px-4 shadow-lg ${
-          message.type === 'erreur' ? 'bg-rouge' : 'bg-encre'
+          message.type === 'erreur' ? 'bg-rouge-fort' : 'bg-encre'
         }`}
         accessibilityLiveRegion="polite">
         <Texte ton="aucun" className={`flex-1 py-3 text-base ${message.type === 'erreur' ? 'text-white' : 'text-fond'}`} numberOfLines={3}>
           {message.texte}
         </Texte>
         <Pressable accessibilityRole="button" accessibilityLabel="Fermer" onPress={fermerMessage} className="size-10 items-center justify-center">
-          <Ionicons name="close" size={20} color={message.type === 'erreur' ? '#fff' : '#94A3B8'} />
+          <Ionicons name="close" size={20} color={message.type === 'erreur' ? c.blanc : c.encre3} />
         </Pressable>
       </Animated.View>
     );

@@ -1,11 +1,10 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useSyncExternalStore } from 'react';
 import { Modal, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { abonnerFeuille, feuilleCourante, repondreFeuille } from '@/services/feuille';
 import { useCouleurs } from '@/theme';
-import { Texte } from './ui';
+import { BoutonIcone, Texte } from './ui';
 
 const abonner = (cb: () => void) => abonnerFeuille(cb);
 
@@ -30,13 +29,7 @@ export function HoteFeuille() {
             <Texte poids="gras" className="flex-1 text-xl" accessibilityRole="header" numberOfLines={2}>
               {f.titre}
             </Texte>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Fermer"
-              onPress={() => repondreFeuille(null)}
-              className="size-12 items-center justify-center rounded-full active:bg-carte-enfoncee">
-              <Ionicons name="close" size={24} color={c.encre2} />
-            </Pressable>
+            <BoutonIcone icone="close" libelle="Fermer" couleur={c.encre2} onPress={() => repondreFeuille(null)} />
           </View>
           <ScrollView contentContainerClassName="pb-2">
             {f.sections.map((s, i) => (

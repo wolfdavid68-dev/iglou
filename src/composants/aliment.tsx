@@ -4,17 +4,17 @@ import { Text, View } from 'react-native';
 import { etatPeremption } from '@/domaine/dates';
 import { emojiPourNom } from '@/domaine/emoji';
 import { estEpuise } from '@/domaine/quantites';
+import { formaterNombre, suffixeUnite } from '@/domaine/texte';
 import type { Aliment } from '@/domaine/types';
 import { useCouleurs } from '@/theme';
 import { Jauge } from './jauge';
 import { Texte } from './ui';
 
-const nombre = (n: number) => (Number.isInteger(n) ? String(n) : n.toLocaleString('fr-FR'));
-
 /** « 2 / 6 », suivi de l'unité quand ce ne sont pas des pièces ou des portions. */
 export function texteStock(a: Pick<Aliment, 'quantite' | 'quantiteMax' | 'unite'>): string {
-  const base = `${nombre(a.quantite)} / ${nombre(a.quantiteMax)}`;
-  return a.unite === 'pièce' || a.unite === 'portion' ? base : `${base} ${a.unite}`;
+  const base = `${formaterNombre(a.quantite)} / ${formaterNombre(a.quantiteMax)}`;
+  const unite = suffixeUnite(a.unite);
+  return unite ? `${base} ${unite}` : base;
 }
 
 /** Emoji, nom, stock et jauge d'un aliment (tiroirs, recherche). */
@@ -33,7 +33,7 @@ export function ApercuAliment({ aliment, compact = false }: { aliment: Aliment; 
             {aliment.nom}
           </Texte>
           {peremption === 'depassee' || peremption === 'proche' ? (
-            <Ionicons name="time-outline" size={14} color={peremption === 'depassee' ? c.rouge : c.orange} />
+            <Ionicons name="time-outline" size={14} color={peremption === 'depassee' ? c.rougeTexte : c.orangeTexte} />
           ) : null}
           <Texte ton={epuise ? 'rouge' : 'secondaire'} poids={epuise ? 'demi' : 'normal'} className="text-xs">
             {texteStock(aliment)}

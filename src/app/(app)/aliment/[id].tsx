@@ -7,6 +7,7 @@ import { BoutonIcone, Carte, Chargement, EnTete, EtatVide, Ligne, Separateur, Te
 import { etatPeremption, formaterDateCourte, ilYA, libellePeremption } from '@/domaine/dates';
 import { emojiPourNom } from '@/domaine/emoji';
 import { decrementer, estEpuise, incrementer, manque, pasPourUnite } from '@/domaine/quantites';
+import { formaterNombre, suffixeUnite } from '@/domaine/texte';
 import { choisirTiroir, deplacerAvecAnnulation, supprimerAvecAnnulation } from '@/services/actions-aliment';
 import { useDonnees } from '@/services/donnees-maison';
 import { choc, tic } from '@/services/haptique';
@@ -14,8 +15,6 @@ import { consommerAliment, modifierAliment, type Auteur } from '@/services/inven
 import { lancer } from '@/services/retours';
 import { useMoi } from '@/services/session';
 import { useCouleurs } from '@/theme';
-
-const nombre = (n: number) => (Number.isInteger(n) ? String(n) : n.toLocaleString('fr-FR'));
 
 /** Fiche d'un aliment : stock, emplacement, péremption et actions. */
 export default function FicheAliment() {
@@ -43,7 +42,8 @@ export default function FicheAliment() {
   const epuise = estEpuise(a);
   const aAcheter = manque(a);
   const peremption = etatPeremption(a.datePeremption);
-  const unite = a.unite === 'pièce' || a.unite === 'portion' ? '' : ` ${a.unite}`;
+  const suffixe = suffixeUnite(a.unite);
+  const unite = suffixe ? ` ${suffixe}` : '';
 
   const ajuster = (sens: 1 | -1) => {
     if (sens === 1) {
@@ -84,26 +84,26 @@ export default function FicheAliment() {
         }
       />
       <View className="flex-1 gap-4 px-4 pb-8">
-        <Carte className="items-center gap-4 p-5">
+        <Carte className="items-center gap-4 p-4">
           <Text className="text-6xl" accessible={false}>
             {emojiPourNom(a.nom)}
           </Text>
           <View className="flex-row items-center gap-6">
-            <BoutonIcone icone="remove" libelle={`Retirer ${nombre(pas)}`} onPress={() => ajuster(-1)} desactive={a.quantite <= 0} taille={28} className="size-14 bg-carte-enfoncee" />
+            <BoutonIcone icone="remove" libelle={`Retirer ${formaterNombre(pas)}`} onPress={() => ajuster(-1)} desactive={a.quantite <= 0} taille={28} className="size-14 bg-carte-enfoncee" />
             <View className="min-w-28 items-center" accessibilityLiveRegion="polite">
               <Texte poids="gras" ton={epuise ? 'rouge' : 'encre'} className="text-4xl">
-                {nombre(a.quantite)}
+                {formaterNombre(a.quantite)}
               </Texte>
               <Texte ton="secondaire" className="text-sm">
-                sur {nombre(a.quantiteMax)}
+                sur {formaterNombre(a.quantiteMax)}
                 {unite}
               </Texte>
             </View>
-            <BoutonIcone icone="add" libelle={`Ajouter ${nombre(pas)}`} onPress={() => ajuster(1)} taille={28} className="size-14 bg-carte-enfoncee" />
+            <BoutonIcone icone="add" libelle={`Ajouter ${formaterNombre(pas)}`} onPress={() => ajuster(1)} taille={28} className="size-14 bg-carte-enfoncee" />
           </View>
           <Jauge stock={a} className="w-full" />
           <Texte ton={epuise ? 'rouge' : aAcheter > 0 ? 'orange' : 'vert'} poids="moyen" className="text-sm">
-            {epuise ? 'Épuisé · dans la liste de courses' : aAcheter > 0 ? `${nombre(aAcheter)}${unite} à racheter` : 'Stock plein'}
+            {epuise ? 'Épuisé · dans la liste de courses' : aAcheter > 0 ? `${formaterNombre(aAcheter)}${unite} à racheter` : 'Stock plein'}
           </Texte>
         </Carte>
 
@@ -118,7 +118,7 @@ export default function FicheAliment() {
           <Separateur />
           <Ligne
             icone="time-outline"
-            couleurIcone={peremption === 'depassee' ? c.rouge : peremption === 'proche' ? c.orange : undefined}
+            couleurIcone={peremption === 'depassee' ? c.rougeTexte : peremption === 'proche' ? c.orangeTexte : undefined}
             titre={a.datePeremption ? libellePeremption(a.datePeremption) : 'Pas de date de péremption'}
             sousTitre={a.datePeremption && !libellePeremption(a.datePeremption).includes('/') ? formaterDateCourte(a.datePeremption) : undefined}
             onPress={() => router.push({ pathname: '/aliment/editer', params: { id: a.id } })}
@@ -140,7 +140,7 @@ export default function FicheAliment() {
               <Separateur />
               <Ligne
                 icone="cart-outline"
-                couleurIcone={c.courses}
+                couleurIcone={c.coursesTexte}
                 titre="Marquer épuisé"
                 sousTitre="Passe la quantité à 0 et l’ajoute aux courses"
                 onPress={marquerEpuise}

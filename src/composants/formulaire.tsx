@@ -11,7 +11,7 @@ export function EcranFormulaire({ children, entete, className = '' }: { children
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingBottom: insets.bottom + 24, paddingTop: entete ? 8 : insets.top + 24 }}
-        contentContainerClassName="grow px-5">
+        contentContainerClassName="grow px-4">
         <View className={`w-full max-w-lg self-center gap-4 ${className}`}>{children}</View>
       </ScrollView>
     </KeyboardAvoidingView>

@@ -19,7 +19,7 @@ export default function Root({ children }: PropsWithChildren) {
         <meta name="apple-mobile-web-app-title" content="Iglou" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="theme-color" content="#F7F9FB" media="(prefers-color-scheme: light)" />
-        <meta name="theme-color" content="#0F172A" media="(prefers-color-scheme: dark)" />
+        <meta name="theme-color" content="#0B1220" media="(prefers-color-scheme: dark)" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         {/* Chrome (Android, ordinateur) : rend l'app installable. */}
         <link rel="manifest" href="/manifest.webmanifest" />

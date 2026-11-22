@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Degrade } from '@/composants/appareil';
 import { BandeauHorsLigne, Texte, type NomIcone } from '@/composants/ui';
 import { useHorsLigne } from '@/services/donnees-maison';
+import { useCouleurs } from '@/theme';
 
 /**
  * En-tête en dégradé, dans l'esprit de l'accueil : titre blanc, motif
@@ -17,6 +18,9 @@ export function EnTeteDegrade({
   couleurs,
   titre,
   sousTitre,
+  surTitre,
+  onTitre,
+  libelleTitre,
   motif,
   retour = true,
   actions,
@@ -25,6 +29,12 @@ export function EnTeteDegrade({
   couleurs: readonly [string, string, ...string[]];
   titre: string;
   sousTitre?: string;
+  /** Petite ligne au-dessus du titre (salutation de l'accueil). */
+  surTitre?: string;
+  /** Rend le titre touchable, avec un chevron (ex. changer de maison). */
+  onTitre?: () => void;
+  /** Libellé d'accessibilité du titre touchable. */
+  libelleTitre?: string;
   /** Grande icône décorative, à peine visible, en haut à droite. */
   motif: ComponentProps<typeof MaterialCommunityIcons>['name'];
   retour?: boolean;
@@ -56,11 +66,11 @@ export function EnTeteDegrade({
               <BoutonVerre icone="arrow-back" libelle="Retour" onPress={() => router.back()} />
               {actions}
             </View>
-            <Titre titre={titre} sousTitre={sousTitre} className="mt-2 px-1" />
+            <Titre titre={titre} sousTitre={sousTitre} surTitre={surTitre} onTitre={onTitre} libelleTitre={libelleTitre} className="mt-2 px-1" />
           </>
         ) : (
           <View className="min-h-14 flex-row items-center gap-2">
-            <Titre titre={titre} sousTitre={sousTitre} className="flex-1 pl-1" />
+            <Titre titre={titre} sousTitre={sousTitre} surTitre={surTitre} onTitre={onTitre} libelleTitre={libelleTitre} className="flex-1 pl-1" />
             {actions}
           </View>
         )}
@@ -72,12 +82,46 @@ export function EnTeteDegrade({
   );
 }
 
-function Titre({ titre, sousTitre, className }: { titre: string; sousTitre?: string; className: string }) {
+function Titre({
+  titre,
+  sousTitre,
+  surTitre,
+  onTitre,
+  libelleTitre,
+  className,
+}: {
+  titre: string;
+  sousTitre?: string;
+  surTitre?: string;
+  onTitre?: () => void;
+  libelleTitre?: string;
+  className: string;
+}) {
+  const c = useCouleurs();
   return (
     <View className={className}>
-      <Texte poids="gras" ton="blanc" className="text-3xl" numberOfLines={2} accessibilityRole="header">
-        {titre}
-      </Texte>
+      {surTitre ? (
+        <Texte poids="moyen" ton="aucun" className="text-sm text-white/80" numberOfLines={1}>
+          {surTitre}
+        </Texte>
+      ) : null}
+      {onTitre ? (
+        <Pressable
+          onPress={onTitre}
+          accessibilityRole="button"
+          accessibilityLabel={libelleTitre ?? titre}
+          hitSlop={8}
+          className="mt-0.5 flex-row items-center gap-1.5 self-start active:opacity-70">
+          <Texte poids="gras" ton="blanc" className="shrink text-3xl" numberOfLines={1}>
+            {titre}
+          </Texte>
+          <Ionicons name="chevron-down" size={22} color={c.blanc} />
+        </Pressable>
+      ) : (
+        <Texte poids="gras" ton="blanc" className="text-3xl" numberOfLines={2} accessibilityRole="header">
+          {titre}
+        </Texte>
+      )}
       {sousTitre ? (
         <Texte poids="moyen" ton="aucun" className="text-sm text-white/80" numberOfLines={1}>
           {sousTitre}
@@ -89,6 +133,7 @@ function Titre({ titre, sousTitre, className }: { titre: string; sousTitre?: str
 
 /** Bouton rond « verre dépoli », lisible sur un dégradé. */
 export function BoutonVerre({ icone, libelle, onPress }: { icone: NomIcone; libelle: string; onPress: () => void }) {
+  const c = useCouleurs();
   return (
     <Pressable
       accessibilityRole="button"
@@ -96,7 +141,7 @@ export function BoutonVerre({ icone, libelle, onPress }: { icone: NomIcone; libe
       hitSlop={4}
       onPress={onPress}
       className="size-12 items-center justify-center rounded-full border border-white/25 bg-white/15 active:bg-white/30">
-      <Ionicons name={icone} size={22} color="#FFFFFF" />
+      <Ionicons name={icone} size={22} color={c.blanc} />
     </Pressable>
   );
 }
