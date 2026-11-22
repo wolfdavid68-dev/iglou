@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState, type ComponentProps, type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, Text, TextInput, View, type TextInputProps, type TextProps } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, Text, TextInput, View, type TextInputProps, type TextProps } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useHorsLigne } from '@/services/donnees-maison';
@@ -18,12 +18,13 @@ const TONS = {
   secondaire: 'text-encre-2',
   discret: 'text-encre-3',
   blanc: 'text-white',
-  rouge: 'text-rouge',
-  orange: 'text-orange',
-  vert: 'text-vert',
-  frigo: 'text-frigo',
-  congelateur: 'text-congelateur',
-  courses: 'text-courses',
+  // Variantes « -texte » : contraste ≥ 4,5:1 (les teintes vives restent pour fonds et icônes).
+  rouge: 'text-rouge-texte',
+  orange: 'text-orange-texte',
+  vert: 'text-vert-texte',
+  frigo: 'text-frigo-texte',
+  congelateur: 'text-congelateur-texte',
+  courses: 'text-courses-texte',
   aucun: '',
 } as const;
 
@@ -53,7 +54,7 @@ export const Titre = ({ children, className = '' }: { children: ReactNode; class
 
 type Variante = 'principal' | 'secondaire' | 'danger' | 'discret';
 const FOND_BOUTON: Record<Variante, string> = {
-  principal: 'bg-frigo active:opacity-80',
+  principal: 'bg-frigo-fort active:opacity-80',
   secondaire: 'bg-carte border border-bordure active:bg-carte-enfoncee',
   danger: 'bg-rouge-pale active:opacity-80',
   discret: 'active:bg-carte-enfoncee',
@@ -73,7 +74,7 @@ export function Bouton({
   titre: string;
   onPress: () => void;
   variante?: Variante;
-  /** Remplace la couleur du bouton principal (ex. `bg-courses`). */
+  /** Remplace la couleur du bouton principal (ex. `bg-courses-fort`). */
   fond?: string;
   icone?: NomIcone;
   chargement?: boolean;
@@ -82,7 +83,7 @@ export function Bouton({
 }) {
   const c = useCouleurs();
   const ton = TON_BOUTON[variante];
-  const couleurIcone = ton === 'blanc' ? '#fff' : ton === 'rouge' ? c.rouge : ton === 'secondaire' ? c.encre2 : c.encre;
+  const couleurIcone = ton === 'blanc' ? c.blanc : ton === 'rouge' ? c.rougeTexte : ton === 'secondaire' ? c.encre2 : c.encre;
   const inactif = desactive || chargement;
   return (
     <Pressable
@@ -151,17 +152,13 @@ export function Champ({
   const c = useCouleurs();
   return (
     <View className={`gap-1.5 ${className}`}>
-      {libelle && (
-        <Texte poids="moyen" ton="secondaire" className="text-sm">
-          {libelle}
-        </Texte>
-      )}
+      {libelle && <Libelle>{libelle}</Libelle>}
       <TextInput
         placeholderTextColor={c.encre3}
         accessibilityLabel={libelle}
         {...props}
         className={`min-h-12 rounded-xl border bg-carte px-4 py-3 font-inter text-base text-encre ${
-          erreur ? 'border-rouge' : 'border-bordure focus:border-frigo'
+          erreur ? 'border-rouge-texte' : 'border-bordure focus:border-frigo-texte'
         }`}
       />
       {erreur ? (
@@ -226,14 +223,14 @@ export function EnTete({
 
 /** Bouton d'action principal, flottant en bas à droite de l'écran. */
 export function BoutonFlottant({ icone = 'add', libelle, texte, onPress }: { icone?: NomIcone; libelle: string; texte?: string; onPress: () => void }) {
+  const c = useCouleurs();
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={libelle}
       onPress={onPress}
-      style={{ position: 'absolute', right: 20, bottom: 20 }}
-      className={`h-16 flex-row items-center justify-center gap-2 rounded-2xl bg-frigo shadow-lg active:scale-95 active:opacity-90 ${texte ? 'pl-5 pr-6' : 'w-16'}`}>
-      <Ionicons name={icone} size={texte ? 26 : 30} color="#FFFFFF" />
+      className={`absolute bottom-5 right-5 h-16 flex-row items-center justify-center gap-2 rounded-2xl bg-frigo-fort shadow-lg active:scale-95 active:opacity-90 ${texte ? 'pl-5 pr-6' : 'w-16'}`}>
+      <Ionicons name={icone} size={texte ? 26 : 30} color={c.blanc} />
       {texte ? (
         <Texte poids="demi" ton="blanc" className="text-base">
           {texte}
@@ -245,10 +242,11 @@ export function BoutonFlottant({ icone = 'add', libelle, texte, onPress }: { ico
 
 /** « Hors ligne – synchronisation au retour du réseau » */
 export function BandeauHorsLigne({ visible }: { visible: boolean }) {
+  const c = useCouleurs();
   if (!visible) return null;
   return (
     <View className="flex-row items-center gap-2 bg-orange-pale px-4 py-2" accessibilityLiveRegion="polite">
-      <Ionicons name="cloud-offline-outline" size={18} color="#F59E0B" />
+      <Ionicons name="cloud-offline-outline" size={18} color={c.orangeTexte} />
       <Texte poids="moyen" className="flex-1 text-sm">
         Hors ligne – synchronisation au retour du réseau
       </Texte>
@@ -263,7 +261,9 @@ export function Carte({ children, className = '' }: { children: ReactNode; class
 export function EtatVide({ emoji, titre, texte, children }: { emoji: string; titre: string; texte?: string; children?: ReactNode }) {
   return (
     <View className="flex-1 items-center justify-center gap-3 px-8 py-16">
-      <Text className="text-6xl">{emoji}</Text>
+      <Text className="text-6xl" accessible={false}>
+        {emoji}
+      </Text>
       <Texte poids="demi" className="text-center text-lg">
         {titre}
       </Texte>
@@ -281,10 +281,19 @@ export function Chargement() {
   const c = useCouleurs();
   return (
     <View className="flex-1 items-center justify-center bg-fond">
-      <ActivityIndicator size="large" color={c.frigo} />
+      <ActivityIndicator size="large" color={c.frigoTexte} />
     </View>
   );
 }
+
+/** Teintes de sélection : bordure, fond pâle et texte, écrites en entier pour Tailwind. */
+export type Teinte = 'frigo' | 'congelateur' | 'courses' | 'orange';
+const TEINTES: Record<Teinte, { actif: string; pale: string; ton: Ton }> = {
+  frigo: { actif: 'border-frigo bg-frigo-pale', pale: 'bg-frigo-pale', ton: 'frigo' },
+  congelateur: { actif: 'border-congelateur bg-congelateur-pale', pale: 'bg-congelateur-pale', ton: 'congelateur' },
+  courses: { actif: 'border-courses bg-courses-pale', pale: 'bg-courses-pale', ton: 'courses' },
+  orange: { actif: 'border-orange bg-orange-pale', pale: 'bg-orange-pale', ton: 'orange' },
+};
 
 /** Choix segmenté (unités, type d'appareil…). */
 export function Segments<T extends string>({
@@ -292,19 +301,19 @@ export function Segments<T extends string>({
   valeur,
   onChange,
   libelle,
+  teinte = 'frigo',
 }: {
   options: { valeur: T; libelle: string }[];
   valeur: T;
   onChange: (v: T) => void;
   libelle?: string;
+  /** Couleur de l'option choisie (ex. bleu quand on choisit « Congélateur »). */
+  teinte?: Teinte;
 }) {
+  const t = TEINTES[teinte];
   return (
     <View className="gap-1.5">
-      {libelle && (
-        <Texte poids="moyen" ton="secondaire" className="text-sm">
-          {libelle}
-        </Texte>
-      )}
+      {libelle && <Libelle>{libelle}</Libelle>}
       <View className="flex-row flex-wrap gap-2" accessibilityRole="radiogroup">
         {options.map((o) => {
           const actif = o.valeur === valeur;
@@ -315,9 +324,9 @@ export function Segments<T extends string>({
               accessibilityState={{ checked: actif }}
               onPress={() => onChange(o.valeur)}
               className={`min-h-12 min-w-12 items-center justify-center rounded-xl border px-4 ${
-                actif ? 'border-frigo bg-frigo-pale' : 'border-bordure bg-carte active:bg-carte-enfoncee'
+                actif ? t.actif : 'border-bordure bg-carte active:bg-carte-enfoncee'
               }`}>
-              <Texte poids={actif ? 'demi' : 'normal'} ton={actif ? 'frigo' : 'encre'}>
+              <Texte poids={actif ? 'demi' : 'normal'} ton={actif ? t.ton : 'encre'}>
                 {o.libelle}
               </Texte>
             </Pressable>
@@ -353,7 +362,7 @@ export function Ligne({
       disabled={!onPress}
       accessibilityRole={onPress ? 'button' : undefined}
       className="min-h-14 flex-row items-center gap-3 px-4 py-3 active:bg-carte-enfoncee">
-      {icone && <Ionicons name={icone} size={22} color={danger ? c.rouge : (couleurIcone ?? c.encre2)} />}
+      {icone && <Ionicons name={icone} size={22} color={danger ? c.rougeTexte : (couleurIcone ?? c.encre2)} />}
       <View className="flex-1">
         <Texte ton={danger ? 'rouge' : 'encre'} poids="moyen" className="text-base" numberOfLines={1}>
           {titre}
@@ -477,7 +486,7 @@ export function Compteur({
           maxLength={9}
           accessibilityLabel={libelle}
           accessibilityHint="Tape un nombre ou utilise les boutons moins et plus."
-          className="h-12 w-24 rounded-xl border border-bordure bg-carte px-2 text-center font-inter-demi text-lg text-encre focus:border-frigo"
+          className="h-12 w-24 rounded-xl border border-bordure bg-carte px-2 text-center font-inter-demi text-lg text-encre focus:border-frigo-texte"
         />
         {suffixe ? (
           <Texte poids="demi" className="text-lg">
@@ -494,5 +503,192 @@ export function Compteur({
         <Ionicons name="add" size={22} color={c.encre} />
       </Pressable>
     </View>
+  );
+}
+
+/* ---------------- Composants communs (puces, encarts, recherche…) ---------------- */
+
+/** Libellé au-dessus d'un champ ou d'un groupe de choix. */
+export function Libelle({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return (
+    <Texte poids="moyen" ton="secondaire" className={`text-sm ${className}`}>
+      {children}
+    </Texte>
+  );
+}
+
+/**
+ * Puce arrondie touchable : suggestion, raccourci, filtre.
+ * `actif` la colore avec `teinte` ; `nombre` ajoute un compteur discret à droite.
+ */
+export function Puce({
+  libelle,
+  onPress,
+  emoji,
+  nombre,
+  actif,
+  teinte = 'frigo',
+  discrete = false,
+  compacte = false,
+  accessibilityLabel,
+  accessibilityRole = 'button',
+}: {
+  libelle: string;
+  onPress: () => void;
+  emoji?: string;
+  nombre?: number;
+  /** Puce sélectionnable : `true` / `false`. Laisser `undefined` pour un simple bouton. */
+  actif?: boolean;
+  teinte?: Teinte;
+  /** Sans bordure ni fond (action secondaire, ex. « Effacer »). */
+  discrete?: boolean;
+  /** 40 dp au lieu de 48 (rangée de filtres défilante, avec `hitSlop`). */
+  compacte?: boolean;
+  accessibilityLabel?: string;
+  accessibilityRole?: 'button' | 'checkbox' | 'radio';
+}) {
+  const t = TEINTES[teinte];
+  const fond = discrete ? 'active:bg-carte-enfoncee' : actif ? t.actif : 'border-bordure bg-carte active:bg-carte-enfoncee';
+  return (
+    <Pressable
+      accessibilityRole={accessibilityRole}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={actif === undefined ? undefined : { checked: actif }}
+      hitSlop={compacte ? 4 : undefined}
+      onPress={onPress}
+      className={`${compacte ? 'h-10 px-3.5' : 'min-h-12 px-4'} flex-row items-center gap-1.5 rounded-full ${discrete ? '' : 'border'} ${fond}`}>
+      {emoji ? (
+        <Text className="text-base" accessible={false}>
+          {emoji}
+        </Text>
+      ) : null}
+      <Texte poids={actif ? 'demi' : 'moyen'} ton={actif ? t.ton : discrete ? 'secondaire' : 'encre'} className="shrink text-sm" numberOfLines={1}>
+        {libelle}
+      </Texte>
+      {nombre != null ? (
+        <Texte ton={actif ? t.ton : 'discret'} className="text-xs">
+          {nombre}
+        </Texte>
+      ) : null}
+    </Pressable>
+  );
+}
+
+/** Pastille ronde avec un nombre (contenu d'un tiroir, d'une liste…). */
+export function PastilleCompte({ nombre, teinte = 'frigo' }: { nombre: number; teinte?: Teinte }) {
+  const t = TEINTES[teinte];
+  return (
+    <View className={`rounded-full px-2 py-0.5 ${t.pale}`}>
+      <Texte poids="demi" ton={t.ton} className="text-xs">
+        {nombre}
+      </Texte>
+    </View>
+  );
+}
+
+/** Encart d'information : emoji, titre et texte sur fond pâle (anti-gaspi, priorités…). */
+export function Encart({
+  emoji,
+  titre,
+  texte,
+  fond = 'bg-orange-pale',
+  compact = false,
+  lignes,
+  children,
+  className = '',
+}: {
+  emoji: string;
+  titre?: string;
+  texte?: ReactNode;
+  /** Nombre maximal de lignes du texte. */
+  lignes?: number;
+  /** Classe de fond (ex. `bg-frigo-pale`). */
+  fond?: string;
+  /** Emoji plus petit et marges réduites (dans une carte). */
+  compact?: boolean;
+  children?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <View className={`flex-row items-center gap-3 rounded-2xl ${compact ? 'p-3' : 'p-4'} ${fond} ${className}`}>
+      <Text className={compact ? 'text-2xl' : 'text-3xl'} accessible={false}>
+        {emoji}
+      </Text>
+      <View className="flex-1 gap-0.5">
+        {titre ? (
+          <Texte poids="demi" className="text-base">
+            {titre}
+          </Texte>
+        ) : null}
+        {texte ? (
+          <Texte ton="secondaire" className="text-sm" numberOfLines={lignes}>
+            {texte}
+          </Texte>
+        ) : null}
+        {children}
+      </View>
+    </View>
+  );
+}
+
+/** Champ de recherche : loupe, saisie et bouton pour effacer. */
+export function ChampRecherche({
+  valeur,
+  onChange,
+  placeholder,
+  libelle,
+  autoFocus,
+}: {
+  valeur: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  libelle: string;
+  autoFocus?: boolean;
+}) {
+  const c = useCouleurs();
+  return (
+    <View className="min-h-12 flex-row items-center gap-2 rounded-xl border border-bordure bg-carte pl-4">
+      <Ionicons name="search" size={20} color={c.encre3} />
+      <TextInput
+        value={valeur}
+        onChangeText={onChange}
+        placeholder={placeholder}
+        placeholderTextColor={c.encre3}
+        accessibilityLabel={libelle}
+        autoCorrect={false}
+        autoFocus={autoFocus}
+        returnKeyType="search"
+        className="flex-1 py-3 font-inter text-base text-encre"
+      />
+      {valeur ? <BoutonIcone icone="close-circle" libelle="Effacer la recherche" onPress={() => onChange('')} couleur={c.encre3} taille={20} /> : null}
+    </View>
+  );
+}
+
+/**
+ * Fenêtre modale centrée : voile, carte arrondie, fermeture en touchant à côté
+ * ou avec le bouton retour d'Android.
+ */
+export function FondModale({
+  onFermer,
+  children,
+  className = '',
+  calque,
+}: {
+  onFermer: () => void;
+  children: ReactNode;
+  className?: string;
+  /** Posé par-dessus toute la fenêtre (ex. calque qui absorbe un clic fantôme). */
+  calque?: ReactNode;
+}) {
+  return (
+    <Modal transparent visible animationType="fade" onRequestClose={onFermer} statusBarTranslucent>
+      <Pressable className="flex-1 items-center justify-center bg-voile px-6" onPress={onFermer} accessibilityLabel="Fermer">
+        <Pressable className={`w-full max-w-sm rounded-3xl bg-carte p-6 ${className}`} onPress={() => {}} accessibilityViewIsModal>
+          {children}
+        </Pressable>
+      </Pressable>
+      {calque}
+    </Modal>
   );
 }

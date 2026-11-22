@@ -11,6 +11,7 @@ import {
   remplissage,
   stockInitial,
 } from '../quantites';
+import { formaterNombre, suffixeUnite } from '../texte';
 
 describe('règle du maximum (stock plein)', () => {
   test("à l'insertion, le maximum vaut la quantité", () => {
@@ -76,5 +77,18 @@ describe('lireQuantite (« Combien en as-tu pris ? »)', () => {
     expect(lireQuantite('0')).toBeNull();
     expect(lireQuantite('-1')).toBeNull();
     expect(lireQuantite('deux')).toBeNull();
+  });
+});
+
+describe('affichage des nombres et des unités', () => {
+  test('virgule française, entiers sans décimales', () => {
+    expect(formaterNombre(2)).toBe('2');
+    expect(formaterNombre(1.5)).toBe('1,5');
+  });
+
+  test('pas de suffixe pour les pièces et les portions', () => {
+    expect(suffixeUnite('pièce')).toBeUndefined();
+    expect(suffixeUnite('portion')).toBeUndefined();
+    expect(suffixeUnite('kg')).toBe('kg');
   });
 });
