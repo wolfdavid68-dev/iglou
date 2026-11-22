@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { FlatList, Pressable, TextInput, View } from 'react-native';
+import { FlatList, Pressable, View } from 'react-native';
 
 import { ApercuAliment } from '@/composants/aliment';
 import { IconeAppareil } from '@/composants/appareil';
-import { BoutonIcone, EnTete, EtatVide, Texte } from '@/composants/ui';
+import { EnTeteDegrade } from '@/composants/en-tete-degrade';
+import { ChampRecherche, Encart, EtatVide, Texte } from '@/composants/ui';
 import { aConsommerEnPriorite, rechercher, type ResultatRecherche } from '@/domaine/inventaire';
 import { prendreAliment } from '@/services/actions-aliment';
 import { useDonnees } from '@/services/donnees-maison';
@@ -23,23 +24,9 @@ export default function EcranRecherche() {
 
   return (
     <View className="flex-1 bg-fond">
-      <EnTete titre="Recherche" sousTitre={maison?.nom} retour={false} />
-      <View className="px-4 pb-3">
-        <View className="min-h-12 flex-row items-center gap-2 rounded-xl border border-bordure bg-carte pl-4">
-          <Ionicons name="search" size={20} color={c.encre3} />
-          <TextInput
-            value={saisie}
-            onChangeText={setSaisie}
-            placeholder="Beurre, steak, petits pois…"
-            placeholderTextColor={c.encre3}
-            accessibilityLabel="Rechercher un aliment"
-            autoCorrect={false}
-            returnKeyType="search"
-            className="flex-1 py-3 font-inter text-base text-encre"
-          />
-          {saisie ? <BoutonIcone icone="close-circle" libelle="Effacer la recherche" onPress={() => setSaisie('')} couleur={c.encre3} taille={20} /> : null}
-        </View>
-      </View>
+      <EnTeteDegrade couleurs={c.heroFrigo} motif="magnify" titre="Recherche" sousTitre={maison?.nom} retour={false}>
+        <ChampRecherche valeur={saisie} onChange={setSaisie} placeholder="Beurre, steak, petits pois…" libelle="Rechercher un aliment" />
+      </EnTeteDegrade>
 
       {vide ? (
         priorites.length ? (
@@ -47,19 +34,14 @@ export default function EcranRecherche() {
             data={priorites}
             keyExtractor={(r) => r.aliment.id}
             keyboardShouldPersistTaps="handled"
-            contentContainerClassName="gap-2 px-4 pb-8"
+            contentContainerClassName="gap-2 px-4 pb-8 pt-4"
             ListHeaderComponent={
-              <View className="mb-1 flex-row items-center gap-3 rounded-2xl bg-orange-pale p-4">
-                <Texte className="text-3xl">⏳</Texte>
-                <View className="flex-1">
-                  <Texte poids="demi" className="text-base">
-                    À consommer en priorité
-                  </Texte>
-                  <Texte ton="secondaire" className="text-sm">
-                    {priorites.length} aliment{priorites.length > 1 ? 's' : ''} périmé{priorites.length > 1 ? 's' : ''} ou bientôt périmé{priorites.length > 1 ? 's' : ''}.
-                  </Texte>
-                </View>
-              </View>
+              <Encart
+                emoji="⏳"
+                titre="À consommer en priorité"
+                texte={`${priorites.length} aliment${priorites.length > 1 ? 's' : ''} périmé${priorites.length > 1 ? 's' : ''} ou bientôt périmé${priorites.length > 1 ? 's' : ''}.`}
+                className="mb-1"
+              />
             }
             renderItem={({ item }) => <LigneResultat resultat={item} />}
           />
@@ -75,7 +57,7 @@ export default function EcranRecherche() {
           data={resultats}
           keyExtractor={(r) => r.aliment.id}
           keyboardShouldPersistTaps="handled"
-          contentContainerClassName="gap-2 px-4 pb-8"
+          contentContainerClassName="gap-2 px-4 pb-8 pt-4"
           ListHeaderComponent={
             <Texte ton="secondaire" className="pb-1 text-sm" accessibilityLiveRegion="polite">
               {resultats.length} résultat{resultats.length > 1 ? 's' : ''}
@@ -102,7 +84,7 @@ function LigneResultat({ resultat }: { resultat: ResultatRecherche }) {
       onPress={() =>
         prendreAliment(maisonId, aliment, { uid: moi.uid, prenom: moi.prenom }, () => router.push({ pathname: '/aliment/[id]', params: { id: aliment.id } }))
       }
-      className="min-h-16 gap-2 rounded-2xl border border-bordure bg-carte p-3 active:bg-carte-enfoncee">
+      className="min-h-16 gap-2 rounded-2xl border border-bordure bg-carte p-4 active:bg-carte-enfoncee">
       <ApercuAliment aliment={resultat.aliment} />
       <View className="flex-row items-center gap-2">
         {appareil ? <IconeAppareil type={appareil.type} taille="petite" /> : null}

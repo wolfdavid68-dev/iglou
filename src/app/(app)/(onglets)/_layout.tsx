@@ -25,7 +25,7 @@ export default function LayoutOnglets() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: c.frigo,
+        tabBarActiveTintColor: c.frigoTexte,
         tabBarInactiveTintColor: c.encre2,
         tabBarStyle: { backgroundColor: c.carte, borderTopColor: c.bordure, minHeight: 72, paddingTop: 6 },
         tabBarLabelStyle: { fontFamily: 'Inter_600SemiBold', fontSize: 12, marginTop: 2 },
@@ -42,9 +42,9 @@ export default function LayoutOnglets() {
         name="courses"
         options={{
           title: 'Courses',
-          tabBarActiveTintColor: c.courses,
+          tabBarActiveTintColor: c.coursesTexte,
           tabBarBadge: aAcheter > 0 ? (aAcheter > 99 ? '99+' : aAcheter) : undefined,
-          tabBarBadgeStyle: { backgroundColor: c.courses, color: '#fff', fontFamily: 'Inter_600SemiBold' },
+          tabBarBadgeStyle: { backgroundColor: c.coursesFort, color: c.blanc, fontFamily: 'Inter_600SemiBold' },
           tabBarIcon: (p) => <IconeOnglet icone="cart" pastille="bg-courses-pale" {...p} />,
         }}
       />
@@ -52,7 +52,7 @@ export default function LayoutOnglets() {
         name="recettes"
         options={{
           title: 'Recettes',
-          tabBarActiveTintColor: c.orange,
+          tabBarActiveTintColor: c.orangeTexte,
           tabBarIcon: (p) => <IconeOnglet icone="restaurant" pastille="bg-orange-pale" {...p} />,
         }}
       />

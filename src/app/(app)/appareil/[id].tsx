@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { BackHandler, Platform, Pressable, Text, View } from 'react-native';
+import { BackHandler, Platform, Pressable, View } from 'react-native';
 import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
 import Animated, { FadeIn, FadeInDown, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApercuAliment } from '@/composants/aliment';
 import { BoutonVerre, EnTeteDegrade, PuceVerre } from '@/composants/en-tete-degrade';
 import { Degrade, libelleType } from '@/composants/appareil';
-import { Bouton, BoutonIcone, Carte, Champ, Chargement, EnTete, EtatVide, Texte } from '@/composants/ui';
+import { Bouton, BoutonIcone, Carte, Champ, Chargement, EnTete, EtatVide, PastilleCompte, Puce, Texte } from '@/composants/ui';
 import { etatPeremption } from '@/domaine/dates';
 import { alimentsDuTiroir, deplacerDansListe, peutSupprimerTiroir, tiroirsDeLAppareil } from '@/domaine/inventaire';
 import { filtrerParRayons, rayonsPresents, type CleRayon, type FiltreRayon } from '@/domaine/rayons';
@@ -22,7 +22,7 @@ import { tic } from '@/services/haptique';
 import { ajouterTiroir, renommerTiroir, reordonnerTiroirs, supprimerTiroir, type Auteur } from '@/services/inventaire';
 import { lancer } from '@/services/retours';
 import { useMoi } from '@/services/session';
-import { HAUTEUR_CORBEILLE, classesAppareil, useCouleurs } from '@/theme';
+import { HAUTEUR_CORBEILLE, classesAppareil, couleurTexteAppareil, useCouleurs } from '@/theme';
 
 const MAX_TIROIRS = 20;
 const LARGEUR_FANTOME = 200;
@@ -276,7 +276,7 @@ function GrilleTiroirs({ maisonId, appareil, tiroirs, aliments, appareils, tousT
         ))}
         {masques > 0 && (
           <Pressable accessibilityRole="button" onPress={() => basculerRayon(null)} className="flex-row items-center gap-2 px-1 active:opacity-70">
-            <Ionicons name="funnel-outline" size={16} color="#94A3B8" />
+            <Ionicons name="funnel-outline" size={16} color={c.encre3} />
             <Texte ton="discret" className="flex-1 text-sm">
               {masques > 1 ? `${masques} tiroirs masqués` : '1 tiroir masqué'} par le filtre.{' '}
               <Texte poids="demi" ton={appareil.type} className="text-sm">
@@ -286,7 +286,7 @@ function GrilleTiroirs({ maisonId, appareil, tiroirs, aliments, appareils, tousT
           </Pressable>
         )}
         <View className="flex-row items-center gap-2 px-1 pt-1">
-          <Ionicons name="hand-left-outline" size={16} color="#94A3B8" />
+          <Ionicons name="hand-left-outline" size={16} color={c.encre3} />
           <Texte ton="discret" className="flex-1 text-sm">
             Touche un aliment pour dire combien tu en as pris. Appui long pour le lâcher dans un autre tiroir ou la corbeille.
           </Texte>
@@ -316,10 +316,10 @@ function GrilleTiroirs({ maisonId, appareil, tiroirs, aliments, appareils, tousT
             pointerEvents="none"
             style={{ height: HAUTEUR_CORBEILLE, bottom: insets.bottom + 16 }}
             className={`absolute left-4 right-4 flex-row items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-rouge ${
-              glisse.cible === CORBEILLE ? 'bg-rouge' : 'bg-rouge-pale'
+              glisse.cible === CORBEILLE ? 'bg-rouge-fort' : 'bg-rouge-pale'
             }`}
             accessibilityLiveRegion="polite">
-            <Ionicons name="trash-outline" size={28} color={glisse.cible === CORBEILLE ? '#fff' : '#EF4444'} />
+            <Ionicons name="trash-outline" size={28} color={glisse.cible === CORBEILLE ? c.blanc : c.rougeTexte} />
             <Texte poids="demi" ton={glisse.cible === CORBEILLE ? 'blanc' : 'rouge'} className="text-base">
               {glisse.cible === CORBEILLE ? 'Lâcher pour supprimer' : 'Glisser ici pour supprimer'}
             </Texte>
@@ -350,7 +350,7 @@ function FiltreRayons({
 }) {
   const total = presents.reduce((n, p) => n + p.nombre, 0);
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }} contentContainerClassName="gap-2 px-4 py-3">
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} className="shrink-0 grow-0" contentContainerClassName="gap-2 px-4 py-3">
       <PuceFiltre appareil={appareil} libelle="Tout" nombre={total} actif={actifs.size === 0} onPress={() => onBasculer(null)} />
       {presents.map(({ rayon, nombre }) => (
         <PuceFiltre
@@ -367,6 +367,7 @@ function FiltreRayons({
   );
 }
 
+/** Puce de filtre : coche un type d'aliment, avec le nombre d'aliments concernés. */
 function PuceFiltre({
   appareil,
   emoji,
@@ -382,25 +383,18 @@ function PuceFiltre({
   actif: boolean;
   onPress: () => void;
 }) {
-  const classes = classesAppareil[appareil.type];
   return (
-    <Pressable
+    <Puce
+      compacte
+      teinte={appareil.type}
       accessibilityRole="checkbox"
-      accessibilityState={{ checked: actif }}
       accessibilityLabel={`${libelle}, ${nombre} aliment${nombre > 1 ? 's' : ''}`}
-      hitSlop={4}
+      emoji={emoji}
+      libelle={libelle}
+      nombre={nombre}
+      actif={actif}
       onPress={onPress}
-      className={`h-10 flex-row items-center gap-1.5 rounded-full border px-3.5 ${
-        actif ? `${classes.bordure} ${classes.pale}` : 'border-vitre-bord bg-carte/80 active:bg-carte'
-      }`}>
-      {emoji && <Text className="text-base">{emoji}</Text>}
-      <Texte poids={actif ? 'demi' : 'moyen'} ton={actif ? appareil.type : 'encre'} className="text-sm">
-        {libelle}
-      </Texte>
-      <Texte ton={actif ? appareil.type : 'discret'} className="text-xs">
-        {nombre}
-      </Texte>
-    </Pressable>
+    />
   );
 }
 
@@ -471,11 +465,7 @@ function PanneauCibles({
                     déjà ici
                   </Texte>
                 ) : k.nombre != null ? (
-                  <View className={`rounded-full px-2 py-0.5 ${classes.pale}`}>
-                    <Texte poids="demi" ton={appareil.type} className="text-xs">
-                      {k.nombre}
-                    </Texte>
-                  </View>
+                  <PastilleCompte nombre={k.nombre} teinte={appareil.type} />
                 ) : null}
               </CaseCible>
             );
@@ -556,18 +546,14 @@ function CarteTiroir({
         <Texte poids="demi" className="shrink text-base" numberOfLines={1}>
           {tiroir.nom}
         </Texte>
-        <View className={`rounded-full px-2 py-0.5 ${classes.pale}`}>
-          <Texte poids="demi" ton={appareil.type} className="text-xs">
-            {contenu.length}
-          </Texte>
-        </View>
+        <PastilleCompte nombre={contenu.length} teinte={appareil.type} />
         <View className="flex-1" />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Ajouter un aliment dans ${tiroir.nom}`}
           onPress={onAjouter}
           className={`size-12 items-center justify-center rounded-full active:opacity-70 ${classes.pale}`}>
-          <Ionicons name="add" size={24} color={appareil.type === 'congelateur' ? c.congelateur : c.frigo} />
+          <Ionicons name="add" size={24} color={couleurTexteAppareil(c, appareil.type)} />
         </Pressable>
       </View>
     </View>
@@ -761,7 +747,7 @@ function LigneTiroir({
         />
         <BoutonIcone icone="chevron-up" libelle={`Monter ${tiroir.nom}`} onPress={onMonter} desactive={premier} />
         <BoutonIcone icone="chevron-down" libelle={`Descendre ${tiroir.nom}`} onPress={onDescendre} desactive={dernier} />
-        <BoutonIcone icone="trash-outline" libelle={`Supprimer ${tiroir.nom}`} onPress={onSupprimer} desactive={seul} couleur={c.rouge} />
+        <BoutonIcone icone="trash-outline" libelle={`Supprimer ${tiroir.nom}`} onPress={onSupprimer} desactive={seul} couleur={c.rougeTexte} />
       </View>
     </Carte>
   );

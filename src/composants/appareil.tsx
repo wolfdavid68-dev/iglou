@@ -5,19 +5,20 @@ import { View } from 'react-native';
 import { withUniwind } from 'uniwind';
 
 import type { TypeAppareil } from '@/domaine/types';
-import { classesAppareil, couleurAppareil, useCouleurs } from '@/theme';
+import { classesAppareil, couleurTexteAppareil, useCouleurs } from '@/theme';
 
 export const Degrade = withUniwind(LinearGradient);
 
-/** Pastille d'icône d'un appareil (frigo turquoise, congélateur bleu). */
+/** Pastille d'icône d'un appareil (frigo turquoise, congélateur bleu), teinte foncée pour rester visible sur le fond pâle. */
 export function IconeAppareil({ type, taille = 'moyenne' }: { type: TypeAppareil; taille?: 'petite' | 'moyenne' }) {
+  const c = useCouleurs();
   const petite = taille === 'petite';
   return (
     <View className={`items-center justify-center rounded-xl ${classesAppareil[type].pale} ${petite ? 'size-9' : 'size-12'}`}>
       <MaterialCommunityIcons
         name={type === 'congelateur' ? 'snowflake' : 'fridge-outline'}
         size={petite ? 20 : 26}
-        color={couleurAppareil(type)}
+        color={couleurTexteAppareil(c, type)}
       />
     </View>
   );

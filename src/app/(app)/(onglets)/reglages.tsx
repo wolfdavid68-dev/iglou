@@ -2,7 +2,8 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 
-import { Bouton, Carte, Chargement, EnTete, Ligne, Pastille, Segments, Separateur, Texte, TitreSection } from '@/composants/ui';
+import { EnTeteDegrade } from '@/composants/en-tete-degrade';
+import { Bouton, Carte, Chargement, Ligne, Pastille, Segments, Separateur, Texte, TitreSection } from '@/composants/ui';
 import { construireExport, nomFichierExport, planImport, resumeFichier, validerImport, type ModeImport } from '@/domaine/import-export';
 import { messageInvitation } from '@/domaine/invitation';
 import type { Membre } from '@/domaine/types';
@@ -217,13 +218,13 @@ export default function EcranReglages() {
 
   return (
     <View className="flex-1 bg-fond">
-      <EnTete titre="Réglages" sousTitre={maison.nom} retour={false} />
+      <EnTeteDegrade couleurs={c.hero} motif="cog" titre="Réglages" sousTitre={maison.nom} retour={false} />
       <ScrollView contentContainerClassName="px-4 pb-10">
-        <TitreSection className="pt-2">Ma maison</TitreSection>
+        <TitreSection className="pt-4">Ma maison</TitreSection>
         <Carte className="overflow-hidden p-0">
           <Ligne
             icone="home-outline"
-            couleurIcone={c.frigo}
+            couleurIcone={c.frigoTexte}
             titre={maison.nom}
             sousTitre={proprietaire ? 'Toucher pour renommer' : 'Nom de la maison'}
             onPress={proprietaire ? renommer : undefined}
@@ -243,7 +244,7 @@ export default function EcranReglages() {
         </Carte>
 
         <TitreSection>Code d’invitation</TitreSection>
-        <Carte className="items-center gap-4 p-5">
+        <Carte className="items-center gap-4 p-4">
           <Texte
             poids="gras"
             className="text-4xl tracking-[0.25em]"
@@ -270,7 +271,7 @@ export default function EcranReglages() {
                 {i > 0 && <Separateur />}
                 <Ligne
                   icone={m.role === 'proprietaire' ? 'star-outline' : 'person-outline'}
-                  couleurIcone={m.role === 'proprietaire' ? c.orange : undefined}
+                  couleurIcone={m.role === 'proprietaire' ? c.orangeTexte : undefined}
                   titre={estMoi ? `${m.prenom} (toi)` : m.prenom}
                   sousTitre={m.role === 'proprietaire' ? 'Propriétaire' : 'Membre'}
                   onPress={retirable ? () => retirer(m) : undefined}
@@ -345,7 +346,7 @@ export default function EcranReglages() {
             sousTitre="Efface ton compte et tes données"
             danger
             onPress={occupe ? undefined : supprimerMonCompte}
-            droite={occupe === 'compte' ? <ActivityIndicator color={c.rouge} /> : undefined}
+            droite={occupe === 'compte' ? <ActivityIndicator color={c.rougeTexte} /> : undefined}
           />
         </Carte>
       </ScrollView>

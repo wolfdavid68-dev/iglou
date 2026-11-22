@@ -1,20 +1,19 @@
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useIsFocused, useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Degrade } from '@/composants/appareil';
+import { EnTeteDegrade } from '@/composants/en-tete-degrade';
 import { FrigoFantome, FrigoIllustre } from '@/composants/frigo';
-import { BandeauHorsLigne, Bouton, BoutonFlottant, Chargement, EtatVide, Texte } from '@/composants/ui';
+import { Bouton, BoutonFlottant, Carte, Chargement, EtatVide, Texte, type NomIcone } from '@/composants/ui';
 import { calculerListeCourses, compterArticles } from '@/domaine/courses';
 import { emojiPourNom } from '@/domaine/emoji';
 import { aConsommerEnPriorite } from '@/domaine/inventaire';
 import { cequiPartLePlusVite, JOURS_STATS, type Tendance } from '@/domaine/statistiques';
 import { changerDeMaison } from '@/services/changer-maison';
 import { useConsommations } from '@/services/consommations';
-import { useDonnees, useHorsLigne } from '@/services/donnees-maison';
+import { useDonnees } from '@/services/donnees-maison';
 import { useMaisons } from '@/services/maisons';
 import { useMoi } from '@/services/session';
 import { useCouleurs } from '@/theme';
@@ -26,8 +25,6 @@ export default function Maison() {
   const { maisonId, maison, appareils, tiroirs, aliments, libres, chargement } = useDonnees();
   const tendances = cequiPartLePlusVite(useConsommations(maisonId));
   const { adhesions, maisonActiveId, choisirMaison } = useMaisons();
-  const horsLigne = useHorsLigne();
-  const focalise = useIsFocused();
   const { width } = useWindowDimensions();
   const largeurFrigo = Math.min(240, Math.round(width * 0.6));
 
@@ -36,8 +33,7 @@ export default function Maison() {
 
   return (
     <View className="flex-1 bg-fond">
-      {focalise && <StatusBar style="light" />}
-      <ScrollView contentContainerClassName="pb-32" contentContainerStyle={{ flexGrow: 1 }}>
+      <ScrollView contentContainerClassName="grow pb-32">
         <EnTeteAccueil
           nomMaison={maison?.nom ?? 'Ma maison'}
           aRacheter={compterArticles(calculerListeCourses(aliments, appareils, libres))}
@@ -45,7 +41,6 @@ export default function Maison() {
           total={aliments.length}
           onChanger={changer}
         />
-        <BandeauHorsLigne visible={horsLigne} />
 
         {chargement ? (
           <Chargement />
@@ -55,7 +50,7 @@ export default function Maison() {
           </EtatVide>
         ) : (
           <View className="gap-3 pt-6">
-            <View className="flex-row items-baseline justify-between px-5">
+            <View className="flex-row items-baseline justify-between px-4">
               <Texte poids="gras" className="text-lg">
                 Mes appareils
               </Texte>
@@ -68,7 +63,7 @@ export default function Maison() {
               showsHorizontalScrollIndicator={false}
               snapToInterval={largeurFrigo + ESPACE_FRIGOS}
               decelerationRate="fast"
-              contentContainerClassName="px-5 pb-2 pt-3"
+              contentContainerClassName="px-4 pb-2 pt-3"
               contentContainerStyle={{ gap: ESPACE_FRIGOS }}>
               {appareils.map((a, i) => (
                 <Animated.View key={a.id} entering={FadeInRight.duration(450).delay(90 * i)}>
@@ -97,7 +92,7 @@ export default function Maison() {
   );
 }
 
-/** En-tête en dégradé : salutation, maison active (touchable pour changer) et chiffres clés. */
+/** En-tête en dégradé : salutation, maison active (touchable pour changer), réglages et chiffres clés. */
 function EnTeteAccueil({
   nomMaison,
   aRacheter,
@@ -112,55 +107,44 @@ function EnTeteAccueil({
   onChanger: () => void;
 }) {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const c = useCouleurs();
   const { prenom } = useMoi();
 
   return (
-    <Degrade colors={c.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ paddingTop: insets.top + 16 }} className="overflow-hidden rounded-b-[32px] px-5 pb-6">
-      {/* Flocon décoratif */}
-      <View pointerEvents="none" style={{ position: 'absolute', right: -40, top: insets.top - 30 }}>
-        <MaterialCommunityIcons name="snowflake" size={200} color="rgba(255,255,255,0.08)" />
-      </View>
-
-      <View className="flex-row items-center gap-3">
-        <View className="flex-1">
-          <Texte poids="moyen" ton="aucun" className="text-sm text-white/80">
-            {salutation()} {prenom} 👋
-          </Texte>
+    <EnTeteDegrade
+      couleurs={c.hero}
+      motif="snowflake"
+      retour={false}
+      titre={nomMaison}
+      surTitre={`${salutation()} ${prenom} 👋`}
+      onTitre={onChanger}
+      libelleTitre={`${nomMaison}, changer de maison`}
+      actions={
+        <>
+          {/* Avatar : initiale du prénom, même « verre » que BoutonVerre. */}
           <Pressable
-            onPress={onChanger}
+            onPress={() => router.push('/reglages')}
             accessibilityRole="button"
-            accessibilityLabel={`${nomMaison}, changer de maison`}
-            hitSlop={8}
-            className="mt-0.5 flex-row items-center gap-1.5 self-start active:opacity-70">
-            <Texte poids="gras" ton="blanc" className="shrink text-3xl" numberOfLines={1}>
-              {nomMaison}
+            accessibilityLabel="Réglages"
+            hitSlop={4}
+            className="size-12 items-center justify-center rounded-full border border-white/25 bg-white/15 active:bg-white/30">
+            <Texte poids="gras" ton="blanc" className="text-lg">
+              {prenom.charAt(0).toUpperCase()}
             </Texte>
-            <Ionicons name="chevron-down" size={22} color="#FFFFFF" />
           </Pressable>
-        </View>
-        <Pressable
-          onPress={() => router.push('/reglages')}
-          accessibilityRole="button"
-          accessibilityLabel="Réglages"
-          className="size-12 items-center justify-center rounded-full border border-white/30 bg-white/20 active:opacity-70">
-          <Texte poids="gras" ton="blanc" className="text-lg">
-            {prenom.charAt(0).toUpperCase()}
-          </Texte>
-        </Pressable>
-      </View>
-
-      <View className="mt-6 flex-row gap-3">
+        </>
+      }>
+      <View className="flex-row gap-3">
         <TuileChiffre valeur={aRacheter} libelle="à racheter" icone="cart-outline" onPress={() => router.push('/courses')} />
         <TuileChiffre valeur={aSurveiller} libelle="à surveiller" icone="time-outline" onPress={aSurveiller ? () => router.push('/recherche') : undefined} />
         <TuileChiffre valeur={total} libelle={total > 1 ? 'aliments' : 'aliment'} icone="nutrition-outline" />
       </View>
-    </Degrade>
+    </EnTeteDegrade>
   );
 }
 
-function TuileChiffre({ valeur, libelle, icone, onPress }: { valeur: number; libelle: string; icone: keyof typeof Ionicons.glyphMap; onPress?: () => void }) {
+/** Chiffre clé de l'en-tête ; le chevron signale les tuiles qui ouvrent un écran. */
+function TuileChiffre({ valeur, libelle, icone, onPress }: { valeur: number; libelle: string; icone: NomIcone; onPress?: () => void }) {
   return (
     <Pressable
       onPress={onPress}
@@ -168,7 +152,10 @@ function TuileChiffre({ valeur, libelle, icone, onPress }: { valeur: number; lib
       accessibilityRole={onPress ? 'button' : 'text'}
       accessibilityLabel={`${valeur} ${libelle}`}
       className="flex-1 gap-1 rounded-2xl border border-white/25 bg-white/15 p-3 active:bg-white/25">
-      <Ionicons name={icone} size={18} color="rgba(255,255,255,0.85)" />
+      <View className="flex-row items-center justify-between">
+        <Ionicons name={icone} size={18} color="rgba(255,255,255,0.85)" />
+        {onPress ? <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.7)" /> : null}
+      </View>
       <Texte poids="gras" ton="blanc" className="text-2xl">
         {valeur}
       </Texte>
@@ -190,10 +177,10 @@ function CarteTendances({ tendances }: { tendances: Tendance[] }) {
   const record = tendances[0]?.sorties ?? 1;
 
   return (
-    <View className="gap-4 rounded-3xl border border-bordure bg-carte p-4 shadow-sm">
+    <Carte className="gap-4 p-4 shadow-sm">
       <View className="flex-row items-center gap-3">
         <View className="size-10 items-center justify-center rounded-2xl bg-orange-pale">
-          <Ionicons name="flame" size={20} color={c.orange} />
+          <Ionicons name="flame" size={20} color={c.orangeTexte} />
         </View>
         <View className="flex-1">
           <Texte poids="demi" className="text-lg">
@@ -243,6 +230,6 @@ function CarteTendances({ tendances }: { tendances: Tendance[] }) {
           ))}
         </View>
       )}
-    </View>
+    </Carte>
   );
 }

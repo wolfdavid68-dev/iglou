@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 
 import { EcranFormulaire } from '@/composants/formulaire';
-import { Bouton, Champ, Compteur, EnTete, Segments, Texte } from '@/composants/ui';
+import { Bouton, Champ, Compteur, EnTete, Libelle, Segments, Texte } from '@/composants/ui';
 import type { TypeAppareil } from '@/domaine/types';
 import { confirmer } from '@/services/dialogue';
 import { useDonnees } from '@/services/donnees-maison';
@@ -74,7 +74,7 @@ export default function EditerAppareil() {
 
   return (
     <EcranFormulaire entete={<EnTete titre={existant ? 'Modifier l’appareil' : 'Nouvel appareil'} />}>
-      <Segments libelle="Type" options={TYPES} valeur={type} onChange={setType} />
+      <Segments libelle="Type" options={TYPES} valeur={type} onChange={setType} teinte={type === 'congelateur' ? 'congelateur' : 'frigo'} />
       <Champ
         libelle="Nom"
         placeholder={type === 'congelateur' ? 'Ex. Congélateur garage' : 'Ex. Frigo cuisine'}
@@ -91,16 +91,20 @@ export default function EditerAppareil() {
       />
       {!existant && (
         <View className="gap-1.5">
-          <Texte poids="moyen" ton="secondaire" className="text-sm">
-            Nombre de tiroirs
-          </Texte>
+          <Libelle>Nombre de tiroirs</Libelle>
           <Compteur libelle="nombre de tiroirs" valeur={nbTiroirs} onChange={setNbTiroirs} min={1} max={20} entier />
           <Texte ton="discret" className="text-sm">
             De 1 à 20. Tu pourras les renommer, en ajouter ou en retirer ensuite.
           </Texte>
         </View>
       )}
-      <Bouton titre={existant ? 'Enregistrer' : 'Créer l’appareil'} onPress={valider} chargement={creeId != null} fond={type === 'congelateur' ? 'bg-congelateur' : undefined} className="mt-2" />
+      <Bouton
+        titre={existant ? 'Enregistrer' : 'Créer l’appareil'}
+        onPress={valider}
+        chargement={creeId != null}
+        fond={type === 'congelateur' ? 'bg-congelateur-fort' : undefined}
+        className="mt-2"
+      />
       {existant && <Bouton titre="Supprimer l’appareil" icone="trash-outline" variante="danger" onPress={supprimer} />}
     </EcranFormulaire>
   );

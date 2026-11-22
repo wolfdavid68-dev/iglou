@@ -3,7 +3,8 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { FlatList, Pressable, Text, View } from 'react-native';
 
-import { EnTete, EtatVide, Pastille, Segments, Texte } from '@/composants/ui';
+import { EnTeteDegrade } from '@/composants/en-tete-degrade';
+import { Encart, EtatVide, Pastille, Segments, Texte } from '@/composants/ui';
 import { RECETTES_REPAS, estPrete, formaterDuree, suggererRecettes, type Suggestion } from '@/domaine/recettes';
 import { useDonnees } from '@/services/donnees-maison';
 import { useCouleurs } from '@/theme';
@@ -19,6 +20,7 @@ const FILTRES: { valeur: Filtre; libelle: string }[] = [
 
 /** Recettes réalisables avec le contenu du frigo et du congélateur. */
 export default function EcranRecettes() {
+  const c = useCouleurs();
   const { aliments } = useDonnees();
   const [filtre, setFiltre] = useState<Filtre>('toutes');
 
@@ -37,7 +39,7 @@ export default function EcranRecettes() {
 
   return (
     <View className="flex-1 bg-fond">
-      <EnTete titre="Recettes" sousTitre="Avec ce qu’il y a chez toi" retour={false} />
+      <EnTeteDegrade couleurs={c.heroRecettes} motif="chef-hat" titre="Recettes" sousTitre="Avec ce qu’il y a chez toi" retour={false} />
       {!enStock ? (
         <EtatVide emoji="🍳" titre="Rien à cuisiner pour l’instant" texte="Ajoute des aliments dans ton frigo ou ton congélateur : les idées de recettes apparaîtront ici." />
       ) : suggestions.length === 0 ? (
@@ -46,22 +48,16 @@ export default function EcranRecettes() {
         <FlatList
           data={visibles}
           keyExtractor={(s) => s.recette.id}
-          contentContainerClassName="gap-3 px-4 pb-8"
+          contentContainerClassName="gap-3 px-4 pb-8 pt-4"
           ListHeaderComponent={
             <View className="gap-3 pb-1">
               {urgents.size > 0 ? (
-                <View className="flex-row items-center gap-3 rounded-2xl bg-orange-pale p-4">
-                  <Texte className="text-3xl">♻️</Texte>
-                  <View className="flex-1">
-                    <Texte poids="demi" className="text-base">
-                      Anti-gaspi
-                    </Texte>
-                    <Texte ton="secondaire" className="text-sm" numberOfLines={3}>
-                      Les recettes qui utilisent {[...urgents].slice(0, 3).join(', ')}
-                      {urgents.size > 3 ? '…' : ''} passent en premier.
-                    </Texte>
-                  </View>
-                </View>
+                <Encart
+                  emoji="♻️"
+                  titre="Anti-gaspi"
+                  lignes={3}
+                  texte={`Les recettes qui utilisent ${[...urgents].slice(0, 3).join(', ')}${urgents.size > 3 ? '…' : ''} passent en premier.`}
+                />
               ) : null}
               <Segments options={FILTRES} valeur={filtre} onChange={setFiltre} />
               <Texte ton="secondaire" className="text-sm" accessibilityLiveRegion="polite">
@@ -97,7 +93,7 @@ function CarteRecette({ suggestion: s }: { suggestion: Suggestion }) {
       accessibilityRole="button"
       accessibilityLabel={`${s.recette.nom}, ${s.recette.minutes} minutes${s.recette.healthy ? ', healthy' : ''}. ${etat}`}
       onPress={() => router.push({ pathname: '/recette/[id]', params: { id: s.recette.id } })}
-      className="flex-row items-center gap-3 rounded-2xl border border-bordure bg-carte p-3 active:bg-carte-enfoncee">
+      className="flex-row items-center gap-3 rounded-2xl border border-bordure bg-carte p-4 active:bg-carte-enfoncee">
       <View className={`size-16 items-center justify-center rounded-2xl ${prete ? 'bg-vert-pale' : 'bg-carte-enfoncee'}`}>
         <Text className="text-4xl" accessible={false}>
           {s.recette.emoji}
@@ -119,7 +115,7 @@ function CarteRecette({ suggestion: s }: { suggestion: Suggestion }) {
           ) : null}
         </View>
         <View className="flex-row items-center gap-1">
-          <Ionicons name={prete ? 'checkmark-circle' : 'cart-outline'} size={14} color={prete ? c.vert : c.courses} />
+          <Ionicons name={prete ? 'checkmark-circle' : 'cart-outline'} size={14} color={prete ? c.vertTexte : c.coursesTexte} />
           <Texte ton={prete ? 'vert' : 'courses'} poids="moyen" className="flex-1 text-xs" numberOfLines={1}>
             {prete ? `Tout est là · ${s.disponibles}/${s.requis} ingrédients` : `Il manque : ${manque}`}
           </Texte>

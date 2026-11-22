@@ -27,7 +27,7 @@ export default function Racine() {
   const base = c.sombre ? DarkTheme : DefaultTheme;
   const theme = {
     ...base,
-    colors: { ...base.colors, background: c.fond, card: c.carte, text: c.encre, border: c.bordure, primary: c.frigo },
+    colors: { ...base.colors, background: c.fond, card: c.carte, text: c.encre, border: c.bordure, primary: c.frigoTexte },
   };
 
   return (

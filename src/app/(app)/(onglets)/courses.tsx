@@ -6,11 +6,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconeAppareil } from '@/composants/appareil';
 import { BoutonVerre, EnTeteDegrade, PuceVerre } from '@/composants/en-tete-degrade';
-import { Bouton, Carte, Champ, Chargement, Compteur, EtatVide, Segments, Separateur, Texte } from '@/composants/ui';
+import { Bouton, Carte, Champ, Chargement, Compteur, EtatVide, Libelle, Segments, Separateur, Texte } from '@/composants/ui';
 import { ajusterAchat, calculerListeCourses, compterArticles, texteListeCourses, type Article, type GroupeCourses, type TriCourses } from '@/domaine/courses';
 import { emojiPourNom } from '@/domaine/emoji';
 import { pasPourUnite } from '@/domaine/quantites';
-import { formaterQuantite, memeNom } from '@/domaine/texte';
+import { formaterQuantite, memeNom, suffixeUnite } from '@/domaine/texte';
 import { confirmer } from '@/services/dialogue';
 import { useDonnees } from '@/services/donnees-maison';
 import { ajouterLibre, modifierAliment, modifierLibre, rangerCourses, supprimerLibre, type Auteur } from '@/services/inventaire';
@@ -121,11 +121,11 @@ export default function EcranCourses() {
       )}
 
       {total > 0 && (
-        <View className="border-t border-bordure bg-carte px-4 pt-3" style={{ paddingBottom: 12 }}>
+        <View className="border-t border-bordure bg-carte px-4 pb-3 pt-3">
           <Bouton
             titre={panier ? `J’ai rangé les courses (${panier})` : 'J’ai rangé les courses'}
             icone="bag-check-outline"
-            fond="bg-courses"
+            fond="bg-courses-fort"
             desactive={panier === 0}
             onPress={ranger}
           />
@@ -194,8 +194,8 @@ function AjoutLibre({ maisonId, auteur, libres }: { maisonId: string; auteur: Au
         accessibilityRole="button"
         accessibilityLabel="Ajouter l’article"
         onPress={ajouter}
-        className="size-12 items-center justify-center rounded-xl bg-courses active:opacity-80">
-        <Ionicons name="add" size={26} color={c.blanc ?? '#fff'} />
+        className="size-12 items-center justify-center rounded-xl bg-courses-fort active:opacity-80">
+        <Ionicons name="add" size={26} color={c.blanc} />
       </Pressable>
     </View>
   );
@@ -215,11 +215,11 @@ function SectionGroupe({ groupe, onBasculer, onEditer }: { groupe: GroupeCourses
       <View className="flex-row items-center gap-2" accessibilityRole="header">
         {groupe.type === 'rayon' ? (
           <View className="size-9 items-center justify-center rounded-xl bg-courses-pale">
-            <Text style={{ fontSize: 18 }}>{groupe.emoji}</Text>
+            <Text className="text-lg" accessible={false}>{groupe.emoji}</Text>
           </View>
         ) : groupe.type === 'libre' ? (
           <View className="size-9 items-center justify-center rounded-xl bg-courses-pale">
-            <Ionicons name="list" size={20} color={c.courses} />
+            <Ionicons name="list" size={20} color={c.coursesTexte} />
           </View>
         ) : (
           <IconeAppareil type={groupe.type} taille="petite" />
@@ -295,9 +295,10 @@ function LigneArticle({ article: a, onBasculer, onEditer }: { article: Article; 
 }
 
 function CaseACocher({ coche }: { coche: boolean }) {
+  const c = useCouleurs();
   return (
-    <View className={`size-7 items-center justify-center rounded-lg border-2 ${coche ? 'border-courses bg-courses' : 'border-encre-3'}`}>
-      {coche ? <Ionicons name="checkmark" size={18} color="#fff" /> : null}
+    <View className={`size-7 items-center justify-center rounded-lg border-2 ${coche ? 'border-courses-fort bg-courses-fort' : 'border-encre-3'}`}>
+      {coche ? <Ionicons name="checkmark" size={18} color={c.blanc} /> : null}
     </View>
   );
 }
@@ -320,7 +321,7 @@ function FeuilleQuantite({
   const c = useCouleurs();
   const pas = pasPourUnite(a.unite);
   const [q, setQ] = useState(a.genre === 'aliment' ? a.aRanger : a.quantite);
-  const suffixe = a.unite === 'pièce' || a.unite === 'portion' ? undefined : a.unite;
+  const suffixe = suffixeUnite(a.unite);
 
   const valider = () => {
     try {
@@ -358,7 +359,7 @@ function FeuilleQuantite({
             <View className="h-1 w-10 rounded-full bg-bordure" />
           </View>
           <View className="flex-row items-center gap-3">
-            <Text className="text-3xl">{emojiPourNom(a.nom)}</Text>
+            <Text className="text-3xl" accessible={false}>{emojiPourNom(a.nom)}</Text>
             <View className="flex-1">
               <Texte poids="gras" className="text-xl" numberOfLines={1} accessibilityRole="header">
                 {a.nom}
@@ -377,9 +378,9 @@ function FeuilleQuantite({
           </View>
 
           <View className="items-center gap-2">
-            <Texte poids="moyen" ton="secondaire" className="text-sm">
+            <Libelle>
               {a.genre === 'aliment' ? 'Quantité achetée' : 'Quantité'}
-            </Texte>
+            </Libelle>
             <Compteur libelle="quantité achetée" valeur={q} onChange={setQ} min={pas} minSaisie={0.001} pas={pas} suffixe={suffixe} />
             {a.genre === 'aliment' && q > a.manque ? (
               <Texte ton="discret" className="text-center text-sm">
@@ -392,7 +393,7 @@ function FeuilleQuantite({
             ) : null}
           </View>
 
-          <Bouton titre={a.genre === 'aliment' ? 'Mettre dans le panier' : 'Enregistrer'} icone="checkmark" fond="bg-courses" onPress={valider} />
+          <Bouton titre={a.genre === 'aliment' ? 'Mettre dans le panier' : 'Enregistrer'} icone="checkmark" fond="bg-courses-fort" onPress={valider} />
           {a.genre === 'aliment' && a.aliment.achatQuantite != null ? (
             <Bouton titre={`Revenir à ${formaterQuantite(a.manque, a.unite)}`} variante="secondaire" onPress={reinitialiser} />
           ) : null}

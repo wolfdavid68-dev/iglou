@@ -32,7 +32,7 @@ export default function ChoisirMaison() {
 
       {messageRetrait ? (
         <View className="flex-row items-center gap-3 rounded-2xl bg-rouge-pale p-4" accessibilityLiveRegion="polite">
-          <Ionicons name="alert-circle-outline" size={22} color={c.rouge} />
+          <Ionicons name="alert-circle-outline" size={22} color={c.rougeTexte} />
           <Texte className="flex-1 text-base">{messageRetrait}</Texte>
           <BoutonIcone icone="close" libelle="Fermer le message" onPress={effacerMessageRetrait} taille={20} />
         </View>
@@ -47,7 +47,7 @@ export default function ChoisirMaison() {
                 {i > 0 && <Separateur />}
                 <Ligne
                   icone="home-outline"
-                  couleurIcone={c.frigo}
+                  couleurIcone={c.frigoTexte}
                   titre={a.nom}
                   sousTitre={a.role === 'proprietaire' ? 'Propriétaire' : 'Membre'}
                   onPress={() => choisirMaison(a.maisonId)}
@@ -78,22 +78,23 @@ export default function ChoisirMaison() {
 function Choix({ emoji, titre, texte, onPress }: { emoji: string; titre: string; texte: string; onPress: () => void }) {
   const c = useCouleurs();
   return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      className="min-h-20 flex-row items-center gap-4 rounded-2xl border border-bordure bg-carte p-4 active:bg-carte-enfoncee">
-      <View className="size-12 items-center justify-center rounded-xl bg-frigo-pale">
-        <Text className="text-2xl">{emoji}</Text>
-      </View>
-      <View className="flex-1">
-        <Texte poids="demi" className="text-base">
-          {titre}
-        </Texte>
-        <Texte ton="secondaire" className="text-sm">
-          {texte}
-        </Texte>
-      </View>
-      <Ionicons name="chevron-forward" size={20} color={c.encre3} />
+    <Pressable accessibilityRole="button" onPress={onPress} className="rounded-2xl active:opacity-80">
+      <Carte className="min-h-20 flex-row items-center gap-4 p-4">
+        <View className="size-12 items-center justify-center rounded-xl bg-frigo-pale">
+          <Text className="text-2xl" accessible={false}>
+            {emoji}
+          </Text>
+        </View>
+        <View className="flex-1">
+          <Texte poids="demi" className="text-base">
+            {titre}
+          </Texte>
+          <Texte ton="secondaire" className="text-sm">
+            {texte}
+          </Texte>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color={c.encre3} />
+      </Carte>
     </Pressable>
   );
 }

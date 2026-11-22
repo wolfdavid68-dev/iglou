@@ -190,9 +190,9 @@ export function FrigoIllustre({
         </Texte>
         <View className="flex-row items-center gap-1.5">
           {congelo ? (
-            <MaterialCommunityIcons name="snowflake" size={14} color={c.congelateur} />
+            <MaterialCommunityIcons name="snowflake" size={14} color={c.congelateurTexte} />
           ) : (
-            <MaterialCommunityIcons name="fridge-outline" size={14} color={c.frigo} />
+            <MaterialCommunityIcons name="fridge-outline" size={14} color={c.frigoTexte} />
           )}
           <Texte ton="secondaire" className="text-sm">
             {contenu.length} aliment{contenu.length > 1 ? 's' : ''} · {tiroirs.length} tiroir{tiroirs.length > 1 ? 's' : ''}
