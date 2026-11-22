@@ -15,6 +15,10 @@ const commun = {
   orange: '#F59E0B',
   rouge: '#EF4444',
   blanc: '#FFFFFF',
+  /** Fonds sous texte blanc (≥ 5:1). */
+  frigoFort: '#0F766E',
+  coursesFort: '#C2410C',
+  congelateurFort: '#1D4ED8',
 };
 
 const clair = {
@@ -24,15 +28,26 @@ const clair = {
   carte: '#FFFFFF',
   bordure: '#E2E8F0',
   encre: '#0F172A',
-  encre2: '#64748B',
-  encre3: '#94A3B8',
+  encre2: '#475569',
+  encre3: '#64748B',
+  /** Couleurs de texte (≥ 4,5:1) : les teintes vives restent pour les icônes et les fonds. */
+  frigoTexte: '#0F766E',
+  congelateurTexte: '#1D4ED8',
+  coursesTexte: '#C2410C',
+  orangeTexte: '#B45309',
+  vertTexte: '#15803D',
+  rougeTexte: '#B91C1C',
   givre: ['#DBEAFE', '#F7F9FB'] as readonly [string, string],
-  /** Dégradé de l'en-tête d'accueil (frigo → congélateur). */
-  hero: ['#14B8A6', '#0EA5E9', '#3B82F6'] as readonly [string, string, string],
-  /** En-têtes en dégradé des autres écrans. */
-  heroCourses: ['#F59E0B', '#F97316', '#F43F5E'] as readonly [string, string, string],
-  heroFrigo: ['#2DD4BF', '#14B8A6', '#0EA5E9'] as readonly [string, string, string],
-  heroCongelateur: ['#38BDF8', '#3B82F6', '#6366F1'] as readonly [string, string, string],
+  /**
+   * Dégradé de l'en-tête d'accueil (frigo → congélateur). Titre blanc : ≥ 3:1 sur
+   * la première teinte (grand texte gras), ≥ 4,5:1 sur la teinte du milieu (sous-titre).
+   */
+  hero: ['#0F766E', '#0E7490', '#1D4ED8'] as readonly [string, string, string],
+  /** En-têtes en dégradé des autres écrans (même règle de contraste). */
+  heroCourses: ['#D97706', '#C2410C', '#BE123C'] as readonly [string, string, string],
+  heroRecettes: ['#D97706', '#B45309', '#9A3412'] as readonly [string, string, string],
+  heroFrigo: ['#0D9488', '#0F766E', '#0E7490'] as readonly [string, string, string],
+  heroCongelateur: ['#0284C7', '#2563EB', '#4F46E5'] as readonly [string, string, string],
   /** Carrosserie (porte) et intérieur éclairé des appareils illustrés. */
   carrosserie: {
     frigo: ['#FFFFFF', '#EEF2F6'] as readonly [string, string],
@@ -61,10 +76,17 @@ const fonce: Couleurs = {
   bordure: '#263247',
   encre: '#F1F5F9',
   encre2: '#94A3B8',
-  encre3: '#64748B',
+  encre3: '#8090A6',
+  frigoTexte: '#2DD4BF',
+  congelateurTexte: '#60A5FA',
+  coursesTexte: '#FB923C',
+  orangeTexte: '#FBBF24',
+  vertTexte: '#4ADE80',
+  rougeTexte: '#F87171',
   givre: ['#172A4A', '#0B1220'],
   hero: ['#0F766E', '#0369A1', '#1D4ED8'],
   heroCourses: ['#B45309', '#C2410C', '#BE123C'],
+  heroRecettes: ['#A16207', '#B45309', '#92400E'],
   heroFrigo: ['#0F766E', '#0E7490', '#0369A1'],
   heroCongelateur: ['#0369A1', '#1D4ED8', '#4338CA'],
   carrosserie: {
@@ -88,10 +110,13 @@ export function useCouleurs(): Couleurs {
 
 export const couleurAppareil = (type: TypeAppareil) => (type === 'congelateur' ? commun.congelateur : commun.frigo);
 
+/** Couleur de texte par type d'appareil (lisible sur carte et fond). */
+export const couleurTexteAppareil = (c: Couleurs, type: TypeAppareil) => (type === 'congelateur' ? c.congelateurTexte : c.frigoTexte);
+
 /** Classes Tailwind par type d'appareil (écrites en entier pour être détectées). */
 export const classesAppareil = {
-  frigo: { fond: 'bg-frigo', pale: 'bg-frigo-pale', texte: 'text-frigo', bordure: 'border-frigo' },
-  congelateur: { fond: 'bg-congelateur', pale: 'bg-congelateur-pale', texte: 'text-congelateur', bordure: 'border-congelateur' },
+  frigo: { fond: 'bg-frigo', pale: 'bg-frigo-pale', texte: 'text-frigo-texte', bordure: 'border-frigo' },
+  congelateur: { fond: 'bg-congelateur', pale: 'bg-congelateur-pale', texte: 'text-congelateur-texte', bordure: 'border-congelateur' },
 } as const;
 
 /** Cible tactile minimale (Material). */

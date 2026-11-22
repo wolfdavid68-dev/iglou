@@ -13,8 +13,8 @@
       --color-carte-enfoncee: #f1f5f9;
       --color-bordure: #e2e8f0;
       --color-encre: #0f172a;
-      --color-encre-2: #64748b;
-      --color-encre-3: #94a3b8;
+      --color-encre-2: #475569;
+      --color-encre-3: #64748b;
       --color-bac: #f8fafc;
       --color-frigo-pale: #ccfbf1;
       --color-congelateur-pale: #dbeafe;
@@ -23,6 +23,15 @@
       --color-orange-pale: #fef3c7;
       --color-vert-pale: #dcfce7;
       --color-voile: rgba(15, 23, 42, 0.4);
+      /* Couleurs de texte (≥ 4,5:1 sur carte et fond) ; les teintes vives restent pour fonds et icônes. */
+      --color-frigo-texte: #0f766e;
+      --color-congelateur-texte: #1d4ed8;
+      --color-courses-texte: #c2410c;
+      --color-orange-texte: #b45309;
+      --color-vert-texte: #15803d;
+      --color-rouge-texte: #b91c1c;
+      /* Accent posé sur bg-encre (bandeau ANNULER), qui s'inverse avec le thème. */
+      --color-courses-inverse: #fb923c;
       /* Intérieur des appareils : vitre des tiroirs, façade, poignées. */
       --color-vitre: rgba(255, 255, 255, 0.62);
       --color-vitre-bord: rgba(255, 255, 255, 0.95);
@@ -37,7 +46,7 @@
       --color-bordure: #263247;
       --color-encre: #f1f5f9;
       --color-encre-2: #94a3b8;
-      --color-encre-3: #64748b;
+      --color-encre-3: #8090a6;
       --color-bac: #111a29;
       --color-frigo-pale: #0f3b37;
       --color-congelateur-pale: #172a4a;
@@ -46,6 +55,13 @@
       --color-orange-pale: #3a2e12;
       --color-vert-pale: #14331f;
       --color-voile: rgba(0, 0, 0, 0.6);
+      --color-frigo-texte: #2dd4bf;
+      --color-congelateur-texte: #60a5fa;
+      --color-courses-texte: #fb923c;
+      --color-orange-texte: #fbbf24;
+      --color-vert-texte: #4ade80;
+      --color-rouge-texte: #f87171;
+      --color-courses-inverse: #c2410c;
       --color-vitre: rgba(255, 255, 255, 0.05);
       --color-vitre-bord: rgba(255, 255, 255, 0.12);
       --color-facade: #1b2638;
@@ -61,6 +77,11 @@
   --color-vert: #22c55e;
   --color-orange: #f59e0b;
   --color-rouge: #ef4444;
+  /* Fonds sous texte blanc (≥ 5:1), dans les deux thèmes. */
+  --color-frigo-fort: #0f766e;
+  --color-courses-fort: #c2410c;
+  --color-congelateur-fort: #1d4ed8;
+  --color-rouge-fort: #dc2626;
   /* Post-it collé sur la porte : même jaune en clair et en sombre. */
   --color-postit: #fde68a;
   --color-postit-encre: #713f12;
