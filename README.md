@@ -50,7 +50,7 @@ npm test                # logique métier (Jest)
 
 Le nom de paquet Android `biz.iglou` est **provisoire** : à changer dans `app.json` avant la première publication (il ne pourra plus changer ensuite sur le Play Store).
 
-La PWA reste publiée sur Firebase Hosting (`npx firebase-tools deploy --only hosting`).
+La PWA est hébergée sur Firebase Hosting (https://iglou.web.app). Elle se publie **automatiquement** à chaque fusion sur `master` (GitHub Action [`publier-pwa.yml`](.github/workflows/publier-pwa.yml) : vérifications, `npx expo export -p web`, puis déploiement). Elle peut aussi se relancer à la main depuis l'onglet Actions. Secret requis : `FIREBASE_SERVICE_ACCOUNT_CONGELATEUR_V91VD`. Publication manuelle possible : `npx expo export -p web` puis `npx firebase-tools deploy --only hosting`.
 
 ## Organisation du code
 
