@@ -42,9 +42,6 @@ example
 /ios
 /android
 
-# Firebase
-.firebase/
-firebase-debug*.log
 firestore-debug*.log
 
 # Claude Code (réglages personnels)
@@ -55,3 +52,7 @@ firestore-debug*.log
 scripts/transfert/export/
 scripts/transfert/*cle*.json
 scripts/transfert/*service*.json
+
+# Archive du site pour le VPS (scripts/paquet-web.sh)
+/site.tar.gz
+/site.tar.gz.sha256

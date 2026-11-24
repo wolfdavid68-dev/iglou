@@ -2,7 +2,7 @@
 
 Inventaire partagé du frigo et du congélateur, par « maisons » : chaque membre voit en direct ce qu'il reste, ce qui manque, et la liste de courses qui en découle.
 
-- **Stack** : Expo SDK 57 · React Native 0.86 · Expo Router · Uniwind (Tailwind 4) · Convex (base de données temps réel + Convex Auth) · PWA hébergée sur Firebase Hosting.
+- **Stack** : Expo SDK 57 · React Native 0.86 · Expo Router · Uniwind (Tailwind 4) · Convex (base de données temps réel + Convex Auth) · PWA hébergée sur un VPS Hostinger (Caddy).
 - **Cahier des charges** : [`docs/cahier-des-charges.md`](docs/cahier-des-charges.md).
 - **Sécurité** : l'app ne contient que l'adresse publique du serveur Convex. Toutes les autorisations sont vérifiées côté serveur, dans les fonctions du dossier [`convex/`](convex/) (voir `convex/acces.ts`).
 
@@ -52,16 +52,26 @@ Le nom de paquet Android `biz.iglou` est **provisoire** : à changer dans `app.j
 
 ## Publication
 
-La GitHub Action [`publier-pwa.yml`](.github/workflows/publier-pwa.yml) (« Publier iglou ») publie tout à chaque fusion sur `master` : vérifications (types, lint, tests), serveur Convex de production (`npx convex deploy`), puis la PWA sur Firebase Hosting (https://iglou.web.app). Elle se relance à la main depuis l'onglet **Actions** → *Publier iglou* → *Run workflow*, et une session Claude Code peut la lancer de la même façon (voir `AGENTS.md`) : aucune clé n'est nécessaire dans la session.
+La GitHub Action [`publier-pwa.yml`](.github/workflows/publier-pwa.yml) (« Publier iglou ») publie tout à chaque fusion sur `master` : vérifications (types, lint, tests), serveur Convex de production (`npx convex deploy`, si le secret `CONVEX_DEPLOY_KEY` existe), puis la PWA. Elle se relance à la main depuis l'onglet **Actions** → *Publier iglou* → *Run workflow*, et une session Claude Code peut la lancer de la même façon (voir `AGENTS.md`).
 
-Secrets à créer une fois dans GitHub (*Settings → Secrets and variables → Actions*) :
+### Site web sur le VPS Hostinger
 
-| Secret | Rôle | Où le trouver |
-| --- | --- | --- |
-| `FIREBASE_SERVICE_ACCOUNT_CONGELATEUR_V91VD` | obligatoire : publier la PWA | `npx firebase-tools init hosting:github` le crée et l'enregistre tout seul. À la main : console Firebase → Paramètres du projet → Comptes de service → *Générer une nouvelle clé privée*, coller tout le fichier JSON. |
-| `CONVEX_DEPLOY_KEY` | publier le serveur Convex (sinon seule la PWA part) | Tableau de bord Convex → projet → déploiement de **production** → *Settings* → *Deploy keys*. |
+La PWA et les pages publiques sont servies par le VPS (`2.25.12.11`) à l'adresse **https://iglou.mediurg.systems**, par [Caddy](https://caddyserver.com) (HTTPS automatique) :
 
-Publication manuelle possible : `npx convex deploy`, puis `npx expo export -p web` et `npx firebase-tools deploy --only hosting`.
+1. L'action construit le site (`npx expo export -p web`, puis [`scripts/paquet-web.sh`](scripts/paquet-web.sh)) et le dépose dans la release **`site-web`** du dépôt (ne pas la supprimer).
+2. Sur le VPS, `iglou-maj` vérifie toutes les 2 minutes si la version a changé, contrôle l'empreinte, installe la nouvelle version et bascule d'un coup (les 3 dernières sont gardées).
+
+Aucune clé n'est nécessaire : ni clé du VPS dans GitHub, ni clé GitHub sur le VPS.
+
+**Installation (une fois)** : dans hPanel → VPS → *Terminal* (ou en SSH, en root) :
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/wolfdavid68-dev/iglou/master/deploy/vps/installer.sh | bash -s -- iglou.mediurg.systems
+```
+
+Le script ([`deploy/vps/installer.sh`](deploy/vps/installer.sh)) installe Caddy, sa configuration (adresses sans `.html`, fiches `/aliment/…`, `/appareil/…`, `/recette/…`, page 404) et la mise à jour automatique. Le relancer est sans danger. Le DNS `iglou.mediurg.systems` → `2.25.12.11` est géré dans hPanel (zone DNS de `mediurg.systems`).
+
+Sur le VPS : `systemctl status iglou-maj.timer` (mises à jour), `journalctl -u iglou-maj` (journal), `sudo iglou-maj` (forcer une vérification).
 
 ## Organisation du code
 

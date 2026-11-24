@@ -1,7 +1,7 @@
 import { openBrowserAsync } from 'expo-web-browser';
 
-/** Pages publiques hébergées sur Firebase Hosting (dossier `site/`). */
-export const SITE = 'https://iglou.web.app';
+/** Pages publiques (dossier `public/`), servies avec la PWA par le VPS (deploy/vps/). */
+export const SITE = 'https://iglou.mediurg.systems';
 export const LIEN_CONFIDENTIALITE = `${SITE}/confidentialite`;
 export const LIEN_SUPPRESSION_COMPTE = `${SITE}/suppression-compte`;
 
