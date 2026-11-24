@@ -50,7 +50,18 @@ npm test                # logique métier (Jest)
 
 Le nom de paquet Android `biz.iglou` est **provisoire** : à changer dans `app.json` avant la première publication (il ne pourra plus changer ensuite sur le Play Store).
 
-La PWA est hébergée sur Firebase Hosting (https://iglou.web.app). Elle se publie **automatiquement** à chaque fusion sur `master` (GitHub Action [`publier-pwa.yml`](.github/workflows/publier-pwa.yml) : vérifications, `npx expo export -p web`, puis déploiement). Elle peut aussi se relancer à la main depuis l'onglet Actions. Secret requis : `FIREBASE_SERVICE_ACCOUNT_CONGELATEUR_V91VD`. Publication manuelle possible : `npx expo export -p web` puis `npx firebase-tools deploy --only hosting`.
+## Publication
+
+La GitHub Action [`publier-pwa.yml`](.github/workflows/publier-pwa.yml) (« Publier iglou ») publie tout à chaque fusion sur `master` : vérifications (types, lint, tests), serveur Convex de production (`npx convex deploy`), puis la PWA sur Firebase Hosting (https://iglou.web.app). Elle se relance à la main depuis l'onglet **Actions** → *Publier iglou* → *Run workflow*, et une session Claude Code peut la lancer de la même façon (voir `AGENTS.md`) : aucune clé n'est nécessaire dans la session.
+
+Secrets à créer une fois dans GitHub (*Settings → Secrets and variables → Actions*) :
+
+| Secret | Rôle | Où le trouver |
+| --- | --- | --- |
+| `FIREBASE_SERVICE_ACCOUNT_CONGELATEUR_V91VD` | obligatoire : publier la PWA | `npx firebase-tools init hosting:github` le crée et l'enregistre tout seul. À la main : console Firebase → Paramètres du projet → Comptes de service → *Générer une nouvelle clé privée*, coller tout le fichier JSON. |
+| `CONVEX_DEPLOY_KEY` | publier le serveur Convex (sinon seule la PWA part) | Tableau de bord Convex → projet → déploiement de **production** → *Settings* → *Deploy keys*. |
+
+Publication manuelle possible : `npx convex deploy`, puis `npx expo export -p web` et `npx firebase-tools deploy --only hosting`.
 
 ## Organisation du code
 

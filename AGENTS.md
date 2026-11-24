@@ -40,6 +40,15 @@ Docs: https://docs.expo.dev/eas/index.md
 - Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
 - Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md
 
+## Publishing iglou (agents)
+
+Publishing = the GitHub Action `.github/workflows/publier-pwa.yml` (« Publier iglou »): checks, `npx convex deploy` to the **production** Convex deployment `grateful-fennec-82` (when the `CONVEX_DEPLOY_KEY` secret is set), `npx expo export -p web`, then Firebase Hosting (https://iglou.web.app). It runs on every push to `master`.
+
+- Never deploy from the session itself (`npx convex deploy`, `firebase deploy`, `npm run deploy`…): the keys live only in the GitHub secrets, not in the sandbox.
+- To publish, only when the user explicitly asks for it in the current conversation (it changes production): merge the work into `master`, or trigger the workflow on `master` through the GitHub API (`workflow_dispatch`, e.g. the `actions_run_trigger` tool with `method: run_workflow`, `workflow_id: publier-pwa.yml`, `ref: master`).
+- Then follow the run (`actions_list` / `get_job_logs`) and report the outcome. A failing « Vérifier les secrets » step means a GitHub secret is missing: tell the user which one (see the workflow header); do not work around it.
+- Android builds (EAS) are not part of this workflow.
+
 <!-- convex-ai-start -->
 
 This project uses [Convex](https://convex.dev) as its backend.

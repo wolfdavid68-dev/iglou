@@ -1,10 +1,18 @@
-# Publie la PWA (https://iglou.web.app) sur Firebase Hosting
-# à chaque fusion sur master, ou à la main depuis l'onglet Actions.
+# Publie iglou : le serveur Convex de production (grateful-fennec-82), puis
+# la PWA sur Firebase Hosting (https://iglou.web.app).
 #
-# Secret GitHub requis : FIREBASE_SERVICE_ACCOUNT_CONGELATEUR_V91VD
-# (clé JSON d'un compte de service du projet Firebase congelateur-v91vd,
-# créé par `npx firebase-tools init hosting:github`).
-name: Publier la PWA
+# Se lance à chaque fusion sur master, ou à la main : onglet Actions →
+# « Publier iglou » → Run workflow. Un agent (session Claude Code) la lance par
+# l'API GitHub (workflow_dispatch sur master), voir AGENTS.md. Aucune clé n'est
+# donc nécessaire dans la session : elles restent dans les secrets GitHub.
+#
+# Secrets GitHub (Settings → Secrets and variables → Actions) :
+#   FIREBASE_SERVICE_ACCOUNT_CONGELATEUR_V91VD  obligatoire : clé JSON d'un compte de
+#     service du projet Firebase congelateur-v91vd (`npx firebase-tools init hosting:github`
+#     la crée et l'enregistre toute seule).
+#   CONVEX_DEPLOY_KEY  facultatif : clé de déploiement de la production Convex
+#     (tableau de bord Convex → Settings → Deploy keys). Sans elle, seule la PWA est publiée.
+name: Publier iglou
 
 on:
   push:
@@ -25,10 +33,23 @@ jobs:
     env:
       # Adresse publique du serveur Convex de production (comme dans eas.json).
       EXPO_PUBLIC_CONVEX_URL: https://grateful-fennec-82.convex.cloud
+      FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_CONGELATEUR_V91VD }}
+      CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
     steps:
-      - uses: actions/checkout@v4
+      # Avant tout le reste : un secret manquant se voit tout de suite, avec la marche à suivre.
+      - name: Vérifier les secrets
+        run: |
+          if [ -z "$FIREBASE_SA" ]; then
+            echo "::error title=Secret manquant::FIREBASE_SERVICE_ACCOUNT_CONGELATEUR_V91VD n'est pas défini. Le créer avec \`npx firebase-tools init hosting:github\`, ou à la main dans Settings → Secrets and variables → Actions (clé JSON d'un compte de service du projet congelateur-v91vd)."
+            exit 1
+          fi
+          if [ -z "$CONVEX_DEPLOY_KEY" ]; then
+            echo "::warning title=Serveur Convex non publié::CONVEX_DEPLOY_KEY n'est pas défini : seule la PWA sera publiée."
+          fi
 
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -42,13 +63,27 @@ jobs:
           npx expo lint
           npm test
 
+      # Le serveur d'abord : la nouvelle PWA ne doit pas appeler des fonctions qui n'existent pas encore.
+      - name: Publier le serveur Convex
+        if: env.CONVEX_DEPLOY_KEY != ''
+        run: npx convex deploy --message "GitHub Actions ${GITHUB_SHA::7}"
+
       - name: Construire la version web
         run: npx expo export -p web
 
-      - name: Publier sur Firebase Hosting
+      - name: Publier la PWA sur Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_CONGELATEUR_V91VD }}
           projectId: congelateur-v91vd
           channelId: live
+
+      - name: Résumé
+        run: |
+          {
+            echo "### iglou publié"
+            echo "- PWA : https://iglou.web.app"
+            if [ -n "$CONVEX_DEPLOY_KEY" ]; then echo "- Serveur Convex : grateful-fennec-82 (production)"; else echo "- Serveur Convex : **non publié** (secret CONVEX_DEPLOY_KEY absent)"; fi
+            echo "- Commit : \`${GITHUB_SHA::7}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
