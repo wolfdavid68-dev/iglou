@@ -42,11 +42,12 @@ Docs: https://docs.expo.dev/eas/index.md
 
 ## Publishing iglou (agents)
 
-Publishing = the GitHub Action `.github/workflows/publier-pwa.yml` (« Publier iglou »): checks, `npx convex deploy` to the **production** Convex deployment `grateful-fennec-82` (when the `CONVEX_DEPLOY_KEY` secret is set), `npx expo export -p web`, then Firebase Hosting (https://iglou.web.app). It runs on every push to `master`.
+Publishing = the GitHub Action `.github/workflows/publier-pwa.yml` (« Publier iglou »): checks, `npx convex deploy` to the **production** Convex deployment `grateful-fennec-82` (when the `CONVEX_DEPLOY_KEY` secret is set), `npx expo export -p web` + `scripts/paquet-web.sh`, then upload to the GitHub release `site-web`. The Hostinger VPS (`deploy/vps/installer.sh`, https://iglou.mediurg.systems) installs that release by itself within 2 minutes. It runs on every push to `master`.
 
-- Never deploy from the session itself (`npx convex deploy`, `firebase deploy`, `npm run deploy`…): the keys live only in the GitHub secrets, not in the sandbox.
+- Never deploy from the session itself (`npx convex deploy`, uploading to the release by hand, SSH to the VPS…): publishing goes only through the workflow.
 - To publish, only when the user explicitly asks for it in the current conversation (it changes production): merge the work into `master`, or trigger the workflow on `master` through the GitHub API (`workflow_dispatch`, e.g. the `actions_run_trigger` tool with `method: run_workflow`, `workflow_id: publier-pwa.yml`, `ref: master`).
-- Then follow the run (`actions_list` / `get_job_logs`) and report the outcome. A failing « Vérifier les secrets » step means a GitHub secret is missing: tell the user which one (see the workflow header); do not work around it.
+- Then follow the run (`actions_list` / `get_job_logs`) and report the outcome; the site is live on the VPS about 2 minutes after the run succeeds (check https://iglou.mediurg.systems).
+- Never delete the `site-web` release: the VPS downloads the site from it.
 - Android builds (EAS) are not part of this workflow.
 
 <!-- convex-ai-start -->
