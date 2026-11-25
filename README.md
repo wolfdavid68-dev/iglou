@@ -69,7 +69,7 @@ Aucune clé n'est nécessaire : ni clé du VPS dans GitHub, ni clé GitHub sur l
 curl -fsSL https://raw.githubusercontent.com/wolfdavid68-dev/iglou/master/deploy/vps/installer.sh | bash -s -- iglou.mediurg.systems
 ```
 
-Le script ([`deploy/vps/installer.sh`](deploy/vps/installer.sh)) installe Caddy, sa configuration (adresses sans `.html`, fiches `/aliment/…`, `/appareil/…`, `/recette/…`, page 404) et la mise à jour automatique. Le relancer est sans danger. Le DNS `iglou.mediurg.systems` → `2.25.12.11` est géré dans hPanel (zone DNS de `mediurg.systems`).
+Le script ([`deploy/vps/installer.sh`](deploy/vps/installer.sh)) installe Caddy, sa configuration (adresses sans `.html`, fiches `/aliment/…`, `/appareil/…`, `/recette/…`, page 404) et la mise à jour automatique. Le relancer est sans danger. Si Tailscale tourne sur le VPS, Caddy n'écoute que sur les adresses publiques (Tailscale garde son port 443) ; `IGLOU_ECOUTE="…"` permet de forcer les adresses. Le DNS `iglou.mediurg.systems` → `2.25.12.11` est géré dans hPanel (zone DNS de `mediurg.systems`).
 
 Sur le VPS : `systemctl status iglou-maj.timer` (mises à jour), `journalctl -u iglou-maj` (journal), `sudo iglou-maj` (forcer une vérification).
 
