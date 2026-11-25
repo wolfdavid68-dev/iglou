@@ -58,20 +58,6 @@ export default function LayoutOnglets() {
           tabBarIcon: (p) => <IconeOnglet icone="restaurant" pastille="bg-frigo-pale" {...p} />,
         }}
       />
-      <Tabs.Screen
-        name="recherche"
-        options={{
-          title: 'Recherche',
-          tabBarIcon: (p) => <IconeOnglet icone="search" pastille="bg-frigo-pale" {...p} />,
-        }}
-      />
-      <Tabs.Screen
-        name="reglages"
-        options={{
-          title: 'Réglages',
-          tabBarIcon: (p) => <IconeOnglet icone="settings" pastille="bg-frigo-pale" {...p} />,
-        }}
-      />
     </Tabs>
   );
 }

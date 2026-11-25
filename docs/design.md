@@ -68,3 +68,18 @@ les deux, alignés. Aucune couleur en dur dans un écran.
 - Filtres : `Puce` ; compteurs : `PastilleCompte`.
 - Les emoji restent pour les **aliments** (c'est le contenu) ; pour l'interface,
   des icônes (Ionicons / MaterialCommunityIcons).
+
+## Structure (refonte du 2026-11-25)
+
+Inspirée des applis anti-gaspi les plus citées (NoWaste, KitchenPal, FridgeBuddy) :
+l'accueil répond d'abord à « qu'est-ce que je dois manger ? ».
+
+- **3 onglets** : Maison, Courses, Recettes. Recherche et Réglages sont des écrans
+  empilés (`src/app/(app)/recherche.tsx`, `reglages.tsx`) : la recherche s'ouvre
+  par la barre de l'accueil (`/recherche?focus=1`, clavier prêt), les réglages
+  par l'avatar.
+- **Accueil**, de haut en bas : salutation, maison (touchable pour changer),
+  avatar, barre de recherche ; « À manger en premier » (carrousel des aliments
+  périmés ou à finir sous 3 jours, échéance en clair) ; les appareils illustrés
+  (la porte s'ouvre au toucher) ; une ligne Courses ; « Ce qui part le plus vite ».
+- Pas de tuiles de chiffres génériques : chaque bloc mène à une action.

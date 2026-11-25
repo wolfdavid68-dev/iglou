@@ -1,5 +1,5 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState, type ComponentProps, type ReactNode } from 'react';
 import { Pressable, ScrollView, View, type TextStyle } from 'react-native';
 
@@ -32,6 +32,8 @@ function grouperParAppareil(resultats: ResultatRecherche[], appareils: Appareil[
 /** Recherche globale d'un aliment dans toute la maison. */
 export default function EcranRecherche() {
   const c = useCouleurs();
+  // `?focus=1` (barre de recherche de l'accueil) : le clavier s'ouvre tout de suite.
+  const { focus } = useLocalSearchParams<{ focus?: string }>();
   const { maison, appareils, tiroirs, aliments } = useDonnees();
   const [saisie, setSaisie] = useState('');
   const resultats = rechercher(aliments, appareils, tiroirs, saisie);
@@ -40,8 +42,8 @@ export default function EcranRecherche() {
 
   return (
     <View className="flex-1 bg-fond">
-      <EnTeteDegrade couleurs={c.heroFrigo} motif="magnify" titre="Recherche" sousTitre={maison?.nom} retour={false}>
-        <ChampRecherche valeur={saisie} onChange={setSaisie} placeholder="Beurre, steak, petits pois…" libelle="Rechercher un aliment" />
+      <EnTeteDegrade couleurs={c.heroFrigo} motif="magnify" titre="Recherche" sousTitre={maison?.nom}>
+        <ChampRecherche valeur={saisie} onChange={setSaisie} placeholder="Beurre, steak, petits pois…" libelle="Rechercher un aliment" autoFocus={focus === '1'} />
       </EnTeteDegrade>
 
       {vide ? (

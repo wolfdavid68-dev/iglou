@@ -218,8 +218,8 @@ export default function EcranReglages() {
 
   return (
     <View className="flex-1 bg-fond">
-      <EnTeteDegrade couleurs={c.hero} motif="cog" titre="Réglages" sousTitre={maison.nom} retour={false} />
-      <ScrollView contentContainerClassName="px-4 pb-10">
+      <EnTeteDegrade couleurs={c.hero} motif="cog" titre="Réglages" sousTitre={maison.nom} />
+      <ScrollView contentContainerClassName="px-4 pb-16">
         <TitreSection className="pt-4">Ma maison</TitreSection>
         <Carte className="overflow-hidden p-0">
           <Ligne

@@ -6,10 +6,11 @@ import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { Degrade } from '@/composants/appareil';
 import { EnTeteDegrade } from '@/composants/en-tete-degrade';
 import { FrigoFantome, FrigoIllustre } from '@/composants/frigo';
-import { Bouton, BoutonFlottant, Carte, Chargement, EtatVide, Texte, type NomIcone } from '@/composants/ui';
+import { Bouton, BoutonFlottant, Carte, Chargement, EtatVide, Texte } from '@/composants/ui';
 import { calculerListeCourses, compterArticles } from '@/domaine/courses';
 import { emojiPourNom } from '@/domaine/emoji';
-import { aConsommerEnPriorite } from '@/domaine/inventaire';
+import { etatPeremption, libellePeremption } from '@/domaine/dates';
+import { aConsommerEnPriorite, type ResultatRecherche } from '@/domaine/inventaire';
 import { cequiPartLePlusVite, JOURS_STATS, type Tendance } from '@/domaine/statistiques';
 import { changerDeMaison } from '@/services/changer-maison';
 import { useConsommations } from '@/services/consommations';
@@ -17,9 +18,11 @@ import { useDonnees } from '@/services/donnees-maison';
 import { useMaisons } from '@/services/maisons';
 import { useMoi } from '@/services/session';
 import { tic } from '@/services/haptique';
-import { useCouleurs, type Couleurs } from '@/theme';
+import type { Aliment } from '@/domaine/types';
+import { useCouleurs } from '@/theme';
 
 const ESPACE_FRIGOS = 20;
+const LARGEUR_URGENCE = 152;
 
 export default function Maison() {
   const router = useRouter();
@@ -28,6 +31,8 @@ export default function Maison() {
   const { adhesions, maisonActiveId, choisirMaison } = useMaisons();
   const { width } = useWindowDimensions();
   const largeurFrigo = Math.min(240, Math.round(width * 0.6));
+  const priorites = aConsommerEnPriorite(aliments, appareils, tiroirs);
+  const aRacheter = compterArticles(calculerListeCourses(aliments, appareils, libres));
 
   const nouvelAppareil = () => router.push('/appareil/editer');
   const changer = () => changerDeMaison(adhesions, maisonActiveId, choisirMaison, maison?.nom);
@@ -35,13 +40,7 @@ export default function Maison() {
   return (
     <View className="flex-1 bg-fond">
       <ScrollView contentContainerClassName="grow pb-32">
-        <EnTeteAccueil
-          nomMaison={maison?.nom ?? 'Ma maison'}
-          aRacheter={compterArticles(calculerListeCourses(aliments, appareils, libres))}
-          aSurveiller={aConsommerEnPriorite(aliments, appareils, tiroirs).length}
-          total={aliments.length}
-          onChanger={changer}
-        />
+        <EnTeteAccueil nomMaison={maison?.nom ?? 'Ma maison'} onChanger={changer} />
 
         {chargement ? (
           <Chargement />
@@ -50,39 +49,45 @@ export default function Maison() {
             <Bouton titre="Ajouter un appareil" icone="add" onPress={nouvelAppareil} className="mt-2" />
           </EtatVide>
         ) : (
-          <View className="gap-2 pt-6">
-            <View className="flex-row items-baseline justify-between px-4">
-              <Texte poids="titre" className="text-xl" accessibilityRole="header">
-                Mes appareils
-              </Texte>
-              <Texte ton="discret" className="text-sm">
-                Touche pour ouvrir
-              </Texte>
-            </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              snapToInterval={largeurFrigo + ESPACE_FRIGOS}
-              decelerationRate="fast"
-              contentContainerClassName="px-4 pb-2 pt-3"
-              contentContainerStyle={{ gap: ESPACE_FRIGOS }}>
-              {appareils.map((a, i) => (
-                <Animated.View key={a.id} entering={FadeInRight.duration(450).delay(90 * i)}>
-                  <FrigoIllustre
-                    appareil={a}
-                    tiroirs={tiroirs.filter((t) => t.appareilId === a.id)}
-                    contenu={aliments.filter((x) => x.appareilId === a.id)}
-                    largeur={largeurFrigo}
-                    onOuvrir={() => router.push({ pathname: '/appareil/[id]', params: { id: a.id } })}
-                  />
-                </Animated.View>
-              ))}
-              <Animated.View entering={FadeInRight.duration(450).delay(90 * appareils.length)}>
-                <FrigoFantome largeur={largeurFrigo} onPress={nouvelAppareil} />
-              </Animated.View>
-            </ScrollView>
+          <View className="gap-8 pt-2">
+            {/* 1. Ce qu'il faut manger d'abord : la raison d'ouvrir l'appli. */}
+            <Animated.View entering={FadeInDown.duration(350)}>
+              <AMangerEnPremier priorites={priorites} />
+            </Animated.View>
 
-            <Animated.View entering={FadeInDown.duration(350).delay(200)} className="mt-3 px-4">
+            {/* 2. Les appareils, porte fermée : on touche pour ouvrir. */}
+            <View className="gap-1">
+              <TitreBloc titre="Mes appareils" />
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                snapToInterval={largeurFrigo + ESPACE_FRIGOS}
+                decelerationRate="fast"
+                contentContainerClassName="px-4 pb-2 pt-3"
+                contentContainerStyle={{ gap: ESPACE_FRIGOS }}>
+                {appareils.map((a, i) => (
+                  <Animated.View key={a.id} entering={FadeInRight.duration(450).delay(90 * i)}>
+                    <FrigoIllustre
+                      appareil={a}
+                      tiroirs={tiroirs.filter((t) => t.appareilId === a.id)}
+                      contenu={aliments.filter((x) => x.appareilId === a.id)}
+                      largeur={largeurFrigo}
+                      onOuvrir={() => router.push({ pathname: '/appareil/[id]', params: { id: a.id } })}
+                    />
+                  </Animated.View>
+                ))}
+                <Animated.View entering={FadeInRight.duration(450).delay(90 * appareils.length)}>
+                  <FrigoFantome largeur={largeurFrigo} onPress={nouvelAppareil} />
+                </Animated.View>
+              </ScrollView>
+            </View>
+
+            {/* 3. Les courses, en une ligne. */}
+            <View className="px-4">
+              <LigneCourses nombre={aRacheter} onPress={() => router.push('/courses')} />
+            </View>
+
+            <Animated.View entering={FadeInDown.duration(350).delay(200)} className="px-4">
               <CarteTendances tendances={tendances} />
             </Animated.View>
           </View>
@@ -93,20 +98,35 @@ export default function Maison() {
   );
 }
 
-/** En-tête givré : salutation, maison active (touchable pour changer), réglages et chiffres clés. */
-function EnTeteAccueil({
-  nomMaison,
-  aRacheter,
-  aSurveiller,
-  total,
-  onChanger,
-}: {
-  nomMaison: string;
-  aRacheter: number;
-  aSurveiller: number;
-  total: number;
-  onChanger: () => void;
-}) {
+/** Titre de bloc de l'accueil, avec une action discrète à droite. */
+function TitreBloc({ titre, action, onAction, nombre }: { titre: string; action?: string; onAction?: () => void; nombre?: number }) {
+  return (
+    <View className="flex-row items-center justify-between gap-3 px-4">
+      <View className="flex-row items-center gap-2">
+        <Texte poids="titre" className="text-xl" accessibilityRole="header">
+          {titre}
+        </Texte>
+        {nombre ? (
+          <View className="min-w-6 items-center rounded-full bg-orange-pale px-2 py-0.5">
+            <Texte poids="demi" ton="orange" className="text-xs" style={{ fontVariant: ['tabular-nums'] }}>
+              {nombre}
+            </Texte>
+          </View>
+        ) : null}
+      </View>
+      {action && onAction ? (
+        <Pressable onPress={onAction} accessibilityRole="button" hitSlop={12} className="min-h-12 justify-center active:opacity-60">
+          <Texte poids="demi" ton="frigo" className="text-sm">
+            {action}
+          </Texte>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+/** En-tête givré : salutation, maison active (touchable pour changer), avatar (réglages) et recherche. */
+function EnTeteAccueil({ nomMaison, onChanger }: { nomMaison: string; onChanger: () => void }) {
   const router = useRouter();
   const c = useCouleurs();
   const { prenom } = useMoi();
@@ -137,73 +157,127 @@ function EnTeteAccueil({
           </Texte>
         </Pressable>
       }>
-      <View className="flex-row gap-3">
-        <TuileChiffre valeur={aRacheter} libelle="à racheter" icone="cart-outline" teinte="courses" onPress={() => router.push('/courses')} />
-        <TuileChiffre
-          valeur={aSurveiller}
-          libelle="à surveiller"
-          icone="time-outline"
-          teinte="orange"
-          onPress={aSurveiller ? () => router.push('/recherche') : undefined}
-        />
-        <TuileChiffre valeur={total} libelle={total > 1 ? 'aliments' : 'aliment'} icone="nutrition-outline" teinte="frigo" />
-      </View>
+      {/* Fausse barre de recherche : ouvre l'écran Recherche, clavier prêt. */}
+      <Pressable
+        onPress={() => router.push({ pathname: '/recherche', params: { focus: '1' } })}
+        accessibilityRole="search"
+        accessibilityLabel="Chercher un aliment dans la maison"
+        style={{ boxShadow: c.ombre.carte }}
+        className="min-h-[52px] flex-row items-center gap-2 rounded-2xl border border-contour bg-carte px-4 active:scale-[0.99] active:bg-carte-enfoncee">
+        <Ionicons name="search" size={20} color={c.encre3} />
+        <Texte ton="discret" className="flex-1 text-base">
+          Chercher dans la maison
+        </Texte>
+      </Pressable>
     </EnTeteDegrade>
   );
 }
 
-/** Teintes des tuiles chiffrées (classes écrites en entier pour Tailwind). */
-const TEINTES_TUILE = {
-  courses: { pale: 'bg-courses-pale', icone: (c: Couleurs) => c.coursesTexte },
-  orange: { pale: 'bg-orange-pale', icone: (c: Couleurs) => c.orangeTexte },
-  frigo: { pale: 'bg-frigo-pale', icone: (c: Couleurs) => c.frigoTexte },
-} as const;
-
-/** Chiffre clé de l'en-tête ; le chevron signale les tuiles qui ouvrent un écran. */
-function TuileChiffre({
-  valeur,
-  libelle,
-  icone,
-  teinte,
-  onPress,
-}: {
-  valeur: number;
-  libelle: string;
-  icone: NomIcone;
-  teinte: keyof typeof TEINTES_TUILE;
-  onPress?: () => void;
-}) {
+/** « À manger en premier » : les aliments périmés ou bientôt périmés, du plus urgent au moins urgent. */
+function AMangerEnPremier({ priorites }: { priorites: ResultatRecherche[] }) {
+  const router = useRouter();
   const c = useCouleurs();
-  const t = TEINTES_TUILE[teinte];
+
+  if (priorites.length === 0) {
+    return (
+      <View className="gap-3">
+        <TitreBloc titre="À manger en premier" />
+        <View className="px-4">
+          <Carte className="flex-row items-center gap-3 p-4">
+            <View className="size-11 items-center justify-center rounded-[14px] bg-vert-pale">
+              <Ionicons name="checkmark-circle" size={22} color={c.vertTexte} />
+            </View>
+            <View className="flex-1">
+              <Texte poids="titre" className="text-base">
+                Rien ne presse
+              </Texte>
+              <Texte ton="secondaire" className="text-sm">
+                Aucun aliment ne périme dans les 3 jours.
+              </Texte>
+            </View>
+          </Carte>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View className="gap-1">
+      <TitreBloc titre="À manger en premier" nombre={priorites.length} action="Tout voir" onAction={() => router.push('/recherche')} />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-3 px-4 pb-3 pt-2" snapToInterval={LARGEUR_URGENCE + 12} decelerationRate="fast">
+        {priorites.map(({ aliment, emplacement }) => (
+          <CarteUrgence key={aliment.id} aliment={aliment} emplacement={emplacement} />
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+/** Carte d'un aliment à finir : gros emoji, nom, échéance colorée et rangement. */
+function CarteUrgence({ aliment, emplacement }: { aliment: Aliment; emplacement: string }) {
+  const router = useRouter();
+  const c = useCouleurs();
+  const perime = etatPeremption(aliment.datePeremption) === 'depassee';
   return (
     <Pressable
-      onPress={
-        onPress
-          ? () => {
-              tic();
-              onPress();
-            }
-          : undefined
-      }
-      disabled={!onPress}
-      accessibilityRole={onPress ? 'button' : 'text'}
-      accessibilityLabel={`${valeur} ${libelle}`}
+      onPress={() => {
+        tic();
+        router.push({ pathname: '/aliment/[id]', params: { id: aliment.id } });
+      }}
+      accessibilityRole="button"
+      accessibilityLabel={`${aliment.nom}, ${aliment.datePeremption ? libellePeremption(aliment.datePeremption) : ''}, ${emplacement}`}
+      style={{ width: LARGEUR_URGENCE, boxShadow: c.ombre.carte }}
+      className="gap-3 rounded-[22px] border border-contour bg-carte p-3.5 active:scale-[0.98] active:bg-carte-enfoncee">
+      <View className={`size-14 items-center justify-center rounded-full ${perime ? 'bg-rouge-pale' : 'bg-orange-pale'}`}>
+        <Text className="text-3xl" accessible={false}>
+          {emojiPourNom(aliment.nom)}
+        </Text>
+      </View>
+      <View className="gap-1">
+        <Texte poids="titre" className="text-[17px] leading-[22px]" numberOfLines={2}>
+          {aliment.nom}
+        </Texte>
+        {aliment.datePeremption ? (
+          <View className="flex-row items-center gap-1">
+            <Ionicons name="time" size={13} color={perime ? c.rougeTexte : c.orangeTexte} />
+            <Texte poids="demi" ton={perime ? 'rouge' : 'orange'} className="shrink text-xs" numberOfLines={2}>
+              {libellePeremption(aliment.datePeremption)}
+            </Texte>
+          </View>
+        ) : null}
+        <Texte ton="discret" className="text-xs" numberOfLines={1}>
+          {emplacement}
+        </Texte>
+      </View>
+    </Pressable>
+  );
+}
+
+/** Ligne « Courses » : combien d'articles manquent, touche pour ouvrir la liste. */
+function LigneCourses({ nombre, onPress }: { nombre: number; onPress: () => void }) {
+  const c = useCouleurs();
+  return (
+    <Pressable
+      onPress={() => {
+        tic();
+        onPress();
+      }}
+      accessibilityRole="button"
+      accessibilityLabel={nombre ? `${nombre} article${nombre > 1 ? 's' : ''} à racheter, ouvrir la liste de courses` : 'Liste de courses'}
       style={{ boxShadow: c.ombre.carte }}
-      className={`flex-1 gap-2 rounded-[20px] border border-contour bg-carte p-3 ${onPress ? 'active:scale-[0.98] active:bg-carte-enfoncee' : ''}`}>
-      <View className="flex-row items-center justify-between">
-        <View className={`size-8 items-center justify-center rounded-[10px] ${t.pale}`}>
-          <Ionicons name={icone} size={17} color={t.icone(c)} />
-        </View>
-        {onPress ? <Ionicons name="chevron-forward" size={16} color={c.encre3} /> : null}
+      className="min-h-[72px] flex-row items-center gap-3 rounded-[20px] border border-contour bg-carte px-4 py-3 active:scale-[0.99] active:bg-carte-enfoncee">
+      <View className="size-11 items-center justify-center rounded-[14px] bg-courses-pale">
+        <Ionicons name="cart" size={21} color={c.coursesTexte} />
       </View>
-      <View>
-        <Texte poids="titre-gras" className="text-[28px] leading-8" style={{ fontVariant: ['tabular-nums'] }}>
-          {valeur}
+      <View className="flex-1">
+        <Texte poids="titre" className="text-lg leading-6">
+          {nombre ? `${nombre} article${nombre > 1 ? 's' : ''} à racheter` : 'Tout est plein'}
         </Texte>
-        <Texte poids="moyen" ton="secondaire" className="text-[13px] leading-4" numberOfLines={1}>
-          {libelle}
+        <Texte ton="secondaire" className="text-sm">
+          {nombre ? 'Ta liste de courses est prête' : 'Rien à racheter pour l’instant'}
         </Texte>
       </View>
+      <Ionicons name="chevron-forward" size={20} color={c.encre3} />
     </Pressable>
   );
 }

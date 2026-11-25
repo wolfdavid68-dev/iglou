@@ -18,6 +18,8 @@ export default function LayoutApp() {
         <Stack.Screen name="aliment/[id]" />
         <Stack.Screen name="aliment/editer" options={{ presentation: 'modal' }} />
         <Stack.Screen name="recette/[id]" />
+        <Stack.Screen name="recherche" />
+        <Stack.Screen name="reglages" />
         <Stack.Screen name="signaler" options={{ presentation: 'modal' }} />
       </Stack>
     </DonneesMaisonProvider>
