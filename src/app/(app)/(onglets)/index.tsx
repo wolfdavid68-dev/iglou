@@ -1,17 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useMemo } from 'react';
 import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 
 import { Degrade } from '@/composants/appareil';
 import { EnTeteDegrade } from '@/composants/en-tete-degrade';
 import { FrigoFantome, FrigoIllustre } from '@/composants/frigo';
-import { CarteRecette, CarteRecetteDuJour } from '@/composants/recette';
 import { Bouton, BoutonFlottant, Carte, Chargement, EtatVide, Texte } from '@/composants/ui';
 import { calculerListeCourses, compterArticles } from '@/domaine/courses';
 import { emojiPourNom } from '@/domaine/emoji';
-import { RECETTES, estPrete, recetteDuJour, suggererRecettes, type Suggestion } from '@/domaine/recettes';
 import { cequiPartLePlusVite, JOURS_STATS, type Tendance } from '@/domaine/statistiques';
 import { changerDeMaison } from '@/services/changer-maison';
 import { useConsommations } from '@/services/consommations';
@@ -22,17 +19,6 @@ import { tic } from '@/services/haptique';
 import { useCouleurs } from '@/theme';
 
 const ESPACE_FRIGOS = 20;
-const LARGEUR_RECETTE = 156;
-
-/** Raccourcis « Envie de… » : ouvrent l'onglet Recettes sur un filtre. */
-const ENVIES: { filtre: string; libelle: string; emoji: string }[] = [
-  { filtre: 'rapides', libelle: 'Rapide', emoji: '⏱️' },
-  { filtre: 'soupe', libelle: 'Soupe', emoji: '🍲' },
-  { filtre: 'salade', libelle: 'Salade', emoji: '🥗' },
-  { filtre: 'plat', libelle: 'Plat', emoji: '🍽️' },
-  { filtre: 'dessert', libelle: 'Dessert', emoji: '🍰' },
-  { filtre: 'petit-dej', libelle: 'Petit-déj', emoji: '🥐' },
-];
 
 export default function Maison() {
   const router = useRouter();
@@ -41,7 +27,6 @@ export default function Maison() {
   const { adhesions, maisonActiveId, choisirMaison } = useMaisons();
   const { width } = useWindowDimensions();
   const largeurFrigo = Math.min(240, Math.round(width * 0.6));
-  const suggestions = useMemo(() => suggererRecettes(aliments, new Date(), RECETTES), [aliments]);
   const aRacheter = compterArticles(calculerListeCourses(aliments, appareils, libres));
 
   const nouvelAppareil = () => router.push('/appareil/editer');
@@ -60,12 +45,7 @@ export default function Maison() {
           </EtatVide>
         ) : (
           <View className="gap-8 pt-2">
-            {/* 1. Qu'est-ce qu'on mange ? : la raison d'ouvrir l'appli. */}
-            <Animated.View entering={FadeInDown.duration(350)}>
-              <QuOnMange suggestions={suggestions} enStock={aliments.some((a) => a.quantite > 0)} />
-            </Animated.View>
-
-            {/* 2. Les appareils, porte fermée : on touche pour ouvrir. */}
+            {/* 1. Les appareils, porte fermée : on touche pour ouvrir. */}
             <View className="gap-1">
               <TitreBloc titre="Mes appareils" />
               <ScrollView
@@ -92,7 +72,7 @@ export default function Maison() {
               </ScrollView>
             </View>
 
-            {/* 3. Les courses, en une ligne. */}
+            {/* 2. Les courses, en une ligne. */}
             <View className="px-4">
               <LigneCourses nombre={aRacheter} onPress={() => router.push('/courses')} />
             </View>
@@ -180,93 +160,6 @@ function EnTeteAccueil({ nomMaison, onChanger }: { nomMaison: string; onChanger:
         </Texte>
       </Pressable>
     </EnTeteDegrade>
-  );
-}
-
-/**
- * « Qu'est-ce qu'on mange ? » : la recette du jour, les raccourcis « Envie de… »,
- * puis les recettes prêtes et celles où il ne manque qu'un ingrédient.
- */
-function QuOnMange({ suggestions, enStock }: { suggestions: Suggestion[]; enStock: boolean }) {
-  const router = useRouter();
-  const c = useCouleurs();
-  const duJour = recetteDuJour(suggestions);
-  const autres = suggestions.filter((s) => s !== duJour);
-  const pretes = autres.filter(estPrete).slice(0, 10);
-  const presque = autres.filter((s) => s.manquants.length === 1).slice(0, 10);
-  const voirRecettes = (filtre: string) => {
-    tic();
-    router.push({ pathname: '/recettes', params: { filtre } });
-  };
-
-  return (
-    <View className="gap-6">
-      <View className="gap-3">
-        <TitreBloc titre="Qu’est-ce qu’on mange ?" />
-        <View className="px-4">
-          {duJour ? (
-            <CarteRecetteDuJour suggestion={duJour} />
-          ) : (
-            <Carte className="flex-row items-center gap-3 p-4">
-              <View className="size-11 items-center justify-center rounded-[14px] bg-frigo-pale">
-                <Ionicons name="restaurant-outline" size={21} color={c.frigoTexte} />
-              </View>
-              <View className="flex-1">
-                <Texte poids="titre" className="text-base">
-                  {enStock ? 'Pas encore d’idée avec ce que tu as' : 'Ton inventaire est vide'}
-                </Texte>
-                <Texte ton="secondaire" className="text-sm">
-                  {enStock ? 'Parcours les recettes : il manque souvent peu de chose.' : 'Ajoute des aliments : les recettes faisables apparaîtront ici.'}
-                </Texte>
-              </View>
-            </Carte>
-          )}
-        </View>
-        {/* Envie de… : un toucher ouvre les recettes du genre choisi. */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2 px-4 py-1">
-          {ENVIES.map((e) => (
-            <Pressable
-              key={e.filtre}
-              onPress={() => voirRecettes(e.filtre)}
-              accessibilityRole="button"
-              accessibilityLabel={`Envie de : ${e.libelle}`}
-              style={{ boxShadow: c.ombre.carte }}
-              className="h-11 flex-row items-center gap-1.5 rounded-full border border-contour bg-carte px-4 active:scale-95 active:bg-carte-enfoncee">
-              <Text className="text-base" accessible={false}>
-                {e.emoji}
-              </Text>
-              <Texte poids="moyen" className="text-sm">
-                {e.libelle}
-              </Texte>
-            </Pressable>
-          ))}
-        </ScrollView>
-      </View>
-
-      {pretes.length > 0 ? (
-        <CarrouselRecettes titre="Prêtes à cuisiner" nombre={suggestions.filter(estPrete).length} suggestions={pretes} onTout={() => voirRecettes('pretes')} />
-      ) : null}
-      {presque.length > 0 ? <CarrouselRecettes titre="Il manque un ingrédient" suggestions={presque} onTout={() => voirRecettes('presque')} /> : null}
-    </View>
-  );
-}
-
-/** Rangée de recettes qui défile, avec « Tout voir » vers l'onglet Recettes. */
-function CarrouselRecettes({ titre, nombre, suggestions, onTout }: { titre: string; nombre?: number; suggestions: Suggestion[]; onTout: () => void }) {
-  return (
-    <View className="gap-1">
-      <TitreBloc titre={titre} nombre={nombre} action="Tout voir" onAction={onTout} />
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerClassName="gap-3 px-4 pb-3 pt-2"
-        snapToInterval={LARGEUR_RECETTE + 12}
-        decelerationRate="fast">
-        {suggestions.map((s) => (
-          <CarteRecette key={s.recette.id} suggestion={s} largeur={LARGEUR_RECETTE} />
-        ))}
-      </ScrollView>
-    </View>
   );
 }
 

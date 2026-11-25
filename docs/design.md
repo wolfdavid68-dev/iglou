@@ -71,21 +71,20 @@ les deux, alignés. Aucune couleur en dur dans un écran.
 
 ## Structure (refonte du 2026-11-25, recentrée sur les recettes)
 
-Iglou sert d'abord à répondre à « qu'est-ce qu'on mange ? » avec ce qu'il y a
-dans le frigo et le congélateur. Pas d'anti-gaspi mis en avant (l'utilisateur
+L'accueil montre la maison (frigo, congélateur) ; l'onglet Recettes répond à
+« qu'est-ce qu'on mange ? » avec ce qu'il y a dedans. Pas d'anti-gaspi mis en avant (l'utilisateur
 congèle : les dates de péremption ne sont qu'une information secondaire).
 
 - **3 onglets** : Maison, Courses, Recettes. Recherche et Réglages sont des écrans
   empilés (`src/app/(app)/recherche.tsx`, `reglages.tsx`) : la recherche s'ouvre
   par la barre de l'accueil (`/recherche?focus=1`, clavier prêt), les réglages
   par l'avatar.
-- **Accueil**, de haut en bas : salutation, maison (touchable pour changer),
-  avatar, barre de recherche ; « Qu'est-ce qu'on mange ? » = **recette du jour**
-  (`recetteDuJour` : une des meilleures recettes prêtes, stable sur la journée)
-  et raccourcis « Envie de… » (ouvrent `/recettes?filtre=…`) ; carrousels
-  « Prêtes à cuisiner » et « Il manque un ingrédient » ; les appareils illustrés ;
-  une ligne Courses ; « Ce qui part le plus vite ».
-- **Recettes** : tout le carnet en grille de 2 (`CarteRecette` de
+- **Accueil** = la maison, sans recettes (choix de l'utilisateur) : salutation,
+  maison (touchable pour changer), avatar, barre de recherche ; les appareils
+  illustrés en premier (la porte s'ouvre au toucher) ; une ligne Courses ;
+  « Ce qui part le plus vite ».
+- **Recettes** : la **recette du jour** en tête (`recetteDuJour` : une des
+  meilleures recettes prêtes, stable sur la journée), puis tout le carnet en grille de 2 (`CarteRecette` de
   `src/composants/recette.tsx` : assiette teintée par catégorie `ASSIETTE`, cœur,
   état « Tout est là » / « Il manque n »), les plus faisables d'abord ; recherche
   par nom ou ingrédient sur tout le carnet ; filtres Prêtes (par défaut), Il manque

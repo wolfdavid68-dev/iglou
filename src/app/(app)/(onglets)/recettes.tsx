@@ -3,9 +3,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { FlatList, ScrollView, useWindowDimensions, View } from 'react-native';
 
 import { EnTeteDegrade } from '@/composants/en-tete-degrade';
-import { CarteRecette } from '@/composants/recette';
+import { CarteRecette, CarteRecetteDuJour } from '@/composants/recette';
 import { Bouton, ChampRecherche, Puce, Texte } from '@/composants/ui';
-import { RECETTES, analyserRecettes, estPrete, rechercherRecettes, suggererRecettes, type Categorie, type Suggestion } from '@/domaine/recettes';
+import { RECETTES, analyserRecettes, estPrete, recetteDuJour, rechercherRecettes, suggererRecettes, type Categorie, type Suggestion } from '@/domaine/recettes';
 import { useDonnees } from '@/services/donnees-maison';
 import { useFavoris } from '@/services/favoris';
 import { tic } from '@/services/haptique';
@@ -67,7 +67,9 @@ export default function EcranRecettes() {
   }, [filtreDemande, router]);
 
   const tout = useMemo(() => analyserRecettes(aliments, new Date(), RECETTES), [aliments]);
-  const faisables = useMemo(() => new Set(suggererRecettes(aliments, new Date(), RECETTES).map((s) => s.recette.id)), [aliments]);
+  const suggestions = useMemo(() => suggererRecettes(aliments, new Date(), RECETTES), [aliments]);
+  const faisables = useMemo(() => new Set(suggestions.map((s) => s.recette.id)), [suggestions]);
+  const duJour = recetteDuJour(suggestions);
 
   const garder = (f: Filtre, s: Suggestion): boolean => {
     const r = s.recette;
@@ -120,24 +122,28 @@ export default function EcranRecettes() {
               {visibles.length ? `${visibles.length} recette${visibles.length > 1 ? 's' : ''} pour « ${recherche} »` : ''}
             </Texte>
           ) : (
-            // Filtres : une seule rangée qui défile, avec le nombre de recettes de chacun.
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-4" contentContainerClassName="gap-2 px-4" accessibilityRole="radiogroup">
-              {FILTRES.map((f) => (
-                <Puce
-                  key={f.valeur}
-                  compacte
-                  emoji={f.emoji}
-                  libelle={f.libelle}
-                  nombre={f.valeur === 'toutes' ? undefined : tout.filter((s) => garder(f.valeur, s)).length}
-                  actif={filtre === f.valeur}
-                  accessibilityRole="radio"
-                  onPress={() => {
-                    if (filtre !== f.valeur) tic();
-                    setFiltre(f.valeur);
-                  }}
-                />
-              ))}
-            </ScrollView>
+            <View className="gap-5">
+              {/* La recette du jour, en tête du carnet. */}
+              {duJour ? <CarteRecetteDuJour suggestion={duJour} /> : null}
+              {/* Filtres : une seule rangée qui défile, avec le nombre de recettes de chacun. */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-4" contentContainerClassName="gap-2 px-4" accessibilityRole="radiogroup">
+                {FILTRES.map((f) => (
+                  <Puce
+                    key={f.valeur}
+                    compacte
+                    emoji={f.emoji}
+                    libelle={f.libelle}
+                    nombre={f.valeur === 'toutes' ? undefined : tout.filter((s) => garder(f.valeur, s)).length}
+                    actif={filtre === f.valeur}
+                    accessibilityRole="radio"
+                    onPress={() => {
+                      if (filtre !== f.valeur) tic();
+                      setFiltre(f.valeur);
+                    }}
+                  />
+                ))}
+              </ScrollView>
+            </View>
           )
         }
         ListEmptyComponent={
