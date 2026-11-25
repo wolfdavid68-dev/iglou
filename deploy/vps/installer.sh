@@ -7,6 +7,10 @@
 # - toutes les 2 minutes, iglou-maj installe la dernière version publiée par
 #   la GitHub Action « Publier iglou » (release « site-web » du dépôt public).
 # Aucune clé n'est stockée sur le VPS. Relancer ce script est sans danger.
+#
+# Si Tailscale tourne sur le VPS (« tailscale serve » occupe le port 443 sur
+# son adresse privée), Caddy n'écoute que sur les adresses publiques, pour ne
+# pas lui prendre ce port. IGLOU_ECOUTE="ip1 [ip6]" force les adresses.
 set -euo pipefail
 
 DOMAINE="${1:-iglou.mediurg.systems}"
@@ -80,8 +84,26 @@ WantedBy=timers.target
 UNIT
 
 echo "== Caddy ($DOMAINE)"
+# Adresses d'écoute : toutes par défaut ; seulement les publiques si Tailscale est là.
+ECOUTE="${IGLOU_ECOUTE:-}"
+if [ -z "$ECOUTE" ] && systemctl is-active --quiet tailscaled 2>/dev/null; then
+  carte=$(ip route show default | awk '{print $5; exit}')
+  ECOUTE=$(ip -o addr show dev "$carte" scope global \
+    | awk '$3 == "inet" {split($4, a, "/"); printf "%s ", a[1]}
+           $3 == "inet6" {split($4, a, "/"); printf "[%s] ", a[1]}')
+  ECOUTE="${ECOUTE% }"
+  [ -n "$ECOUTE" ] || { echo "Tailscale est actif mais aucune adresse publique trouvée : précisez IGLOU_ECOUTE." >&2; exit 1; }
+fi
+GLOBAL=""
+if [ -n "$ECOUTE" ]; then
+  echo "Caddy écoute seulement sur : $ECOUTE"
+  GLOBAL="{
+	default_bind $ECOUTE
+}
+"
+fi
 cat > /etc/caddy/Caddyfile <<CADDY
-# Site iglou (installé par deploy/vps/installer.sh). HTTPS automatique.
+${GLOBAL}# Site iglou (installé par deploy/vps/installer.sh). HTTPS automatique.
 $DOMAINE {
 	root * $SITE/courant
 	encode zstd gzip
@@ -127,6 +149,14 @@ caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null
 systemctl daemon-reload
 systemctl enable --now iglou-maj.timer
 /usr/local/bin/iglou-maj || true
+# Si Caddy démarre avant que le réseau soit prêt, il réessaie tout seul.
+mkdir -p /etc/systemd/system/caddy.service.d
+cat > /etc/systemd/system/caddy.service.d/relance.conf <<'UNIT'
+[Service]
+Restart=on-failure
+RestartSec=5
+UNIT
+systemctl daemon-reload
 systemctl enable caddy >/dev/null 2>&1
 systemctl reload caddy 2>/dev/null || systemctl restart caddy
 
