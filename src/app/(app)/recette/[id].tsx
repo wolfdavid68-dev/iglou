@@ -1,12 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Fragment, type ReactNode } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Fragment, useState, type ReactNode } from 'react';
+import { Pressable, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ASSIETTE, BoutonFavori } from '@/composants/recette';
 import { Bouton, Carte, EnTete, EtatVide, Ligne, Pastille, Separateur, Texte, TitreSection, type NomIcone } from '@/composants/ui';
 import { etatPeremption } from '@/domaine/dates';
 import {
   LIBELLES_CATEGORIE,
+  adapterQuantite,
   analyserRecette,
   formaterDuree,
   manquantsAAjouter,
@@ -15,6 +18,7 @@ import {
 } from '@/domaine/recettes';
 import { useDonnees } from '@/services/donnees-maison';
 import { ajouterLibres, type Auteur } from '@/services/inventaire';
+import { tic } from '@/services/haptique';
 import { afficherMessage, lancer } from '@/services/retours';
 import { useMoi } from '@/services/session';
 import { useCouleurs } from '@/theme';
@@ -22,6 +26,9 @@ import { useCouleurs } from '@/theme';
 /** Fiche d'une recette : ce qu'on a, ce qui manque, et les étapes. */
 export default function FicheRecette() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const [choixPortions, setChoixPortions] = useState<number | null>(null);
   const { maisonId, appareils, tiroirs, aliments, libres } = useDonnees();
   const moi = useMoi();
   const c = useCouleurs();
@@ -38,6 +45,8 @@ export default function FicheRecette() {
   }
 
   const s = analyserRecette(recette, aliments);
+  const portions = choixPortions ?? recette.portions;
+  const quantite = (q: string | null) => adapterQuantite(q, recette.portions, portions);
   const aAjouter = manquantsAAjouter(s, aliments, libres);
   const emplacement = (l: LigneRecette) => {
     if (!l.aliment) return undefined;
@@ -59,21 +68,23 @@ export default function FicheRecette() {
 
   return (
     <View className="flex-1 bg-fond">
-      <EnTete titre={LIBELLES_CATEGORIE[recette.categorie]} />
-      <ScrollView contentContainerClassName="px-4 pb-12">
+      <EnTete titre={LIBELLES_CATEGORIE[recette.categorie]} actions={<BoutonFavori id={recette.id} taille="grand" />} />
+      <ScrollView contentContainerClassName="px-4" contentContainerStyle={{ paddingBottom: insets.bottom + 112 }}>
         {/* En-tête du plat : grande tuile douce, nom en police de titre, repères en icônes. */}
         <View className="items-center gap-4 pb-2 pt-3">
-          <View style={{ boxShadow: c.ombre.carte }} className="size-32 items-center justify-center rounded-[32px] border border-contour bg-carte">
-            <Text className="text-[72px] leading-[88px]" accessible={false}>
-              {recette.emoji}
-            </Text>
+          {/* Même assiette teintée que sur les cartes du carnet. */}
+          <View style={{ boxShadow: c.ombre.carte }} className={`size-40 items-center justify-center rounded-[36px] border border-contour ${ASSIETTE[recette.categorie]}`}>
+            <View className="size-28 items-center justify-center rounded-full bg-carte/70">
+              <Text className="text-[72px] leading-[88px]" accessible={false}>
+                {recette.emoji}
+              </Text>
+            </View>
           </View>
           <Texte poids="titre-gras" className="px-2 text-center text-[28px] leading-[34px]" accessibilityRole="header">
             {recette.nom}
           </Texte>
           <View className="flex-row flex-wrap justify-center gap-x-5 gap-y-2">
             <Repere icone="time-outline" texte={formaterDuree(recette.minutes)} />
-            <Repere icone="people-outline" texte={`${recette.portions} personne${recette.portions > 1 ? 's' : ''}`} />
             {recette.healthy ? <Repere icone="leaf-outline" texte="Healthy" vert /> : null}
           </View>
           <Pastille
@@ -83,24 +94,18 @@ export default function FicheRecette() {
           />
         </View>
 
-        {s.urgents.length > 0 ? (
-          <Carte className="mt-4 flex-row items-center gap-4 p-4">
-            <View className="size-11 items-center justify-center rounded-2xl bg-orange-pale">
-              <Ionicons name="hourglass-outline" size={20} color={c.orangeTexte} />
-            </View>
-            <Texte ton="secondaire" className="flex-1 text-sm leading-5">
-              Parfait pour finir {s.urgents.map((a) => a.nom).join(', ')} avant qu’il ne soit trop tard.
-            </Texte>
-          </Carte>
-        ) : null}
-
-        <TitreSection>Ingrédients</TitreSection>
+        <View className="mb-2.5 mt-6 flex-row items-center justify-between gap-3">
+          <Texte poids="titre" className="px-1 text-lg" accessibilityRole="header">
+            Ingrédients
+          </Texte>
+          <ReglagePortions valeur={portions} onChange={setChoixPortions} />
+        </View>
         {enStock.length > 0 ? (
           <GroupeIngredients titre={`Chez toi (${enStock.length})`}>
             {enStock.map((l, i) => (
               <Fragment key={`${l.ingredient.cle}-${i}`}>
                 {i > 0 ? <Separateur /> : null}
-                <LigneIngredient ligne={l} emplacement={emplacement(l)} />
+                <LigneIngredient ligne={l} quantite={quantite(l.ingredient.quantite)} emplacement={emplacement(l)} />
               </Fragment>
             ))}
           </GroupeIngredients>
@@ -111,7 +116,7 @@ export default function FicheRecette() {
             {aAcheter.map((l, i) => (
               <Fragment key={`${l.ingredient.cle}-${i}`}>
                 {i > 0 ? <Separateur /> : null}
-                <LigneIngredient ligne={l} />
+                <LigneIngredient ligne={l} quantite={quantite(l.ingredient.quantite)} />
               </Fragment>
             ))}
           </GroupeIngredients>
@@ -142,7 +147,7 @@ export default function FicheRecette() {
                 <View key={`${l.ingredient.cle}-${i}`} className="rounded-full bg-carte-enfoncee px-3 py-1.5">
                   <Texte className="text-sm">
                     {l.ingredient.nom}
-                    {l.ingredient.quantite ? <Texte ton="secondaire" className="text-sm">{` ${l.ingredient.quantite}`}</Texte> : null}
+                    {l.ingredient.quantite ? <Texte ton="secondaire" className="text-sm">{` ${quantite(l.ingredient.quantite)}`}</Texte> : null}
                   </Texte>
                 </View>
               ))}
@@ -164,6 +169,52 @@ export default function FicheRecette() {
           ))}
         </Carte>
       </ScrollView>
+
+      {/* Barre du bas : on passe en mode cuisine, une étape par écran. */}
+      <View style={{ paddingBottom: insets.bottom + 12, boxShadow: c.ombre.barre }} className="absolute bottom-0 left-0 right-0 bg-carte px-4 pt-3">
+        <Bouton
+          titre="Cuisiner pas à pas"
+          icone="flame-outline"
+          onPress={() => router.push({ pathname: '/recette/cuisine/[id]', params: { id: recette.id, portions: String(portions) } })}
+        />
+      </View>
+    </View>
+  );
+}
+
+/** Nombre de personnes : − n +, les quantités suivent. */
+function ReglagePortions({ valeur, onChange }: { valeur: number; onChange: (n: number) => void }) {
+  const c = useCouleurs();
+  const regler = (n: number) => {
+    tic();
+    onChange(n);
+  };
+  return (
+    <View className="flex-row items-center gap-1 rounded-full bg-carte-enfoncee p-1" accessibilityLabel={`${valeur} personne${valeur > 1 ? 's' : ''}`}>
+      <Pressable
+        onPress={() => regler(Math.max(1, valeur - 1))}
+        disabled={valeur <= 1}
+        accessibilityRole="button"
+        accessibilityLabel="Une personne de moins"
+        hitSlop={4}
+        className={`size-10 items-center justify-center rounded-full bg-carte active:scale-95 ${valeur <= 1 ? 'opacity-40' : ''}`}>
+        <Ionicons name="remove" size={20} color={c.encre} />
+      </Pressable>
+      <View className="min-w-16 flex-row items-center justify-center gap-1 px-1">
+        <Ionicons name="people-outline" size={16} color={c.encre2} />
+        <Texte poids="titre" className="text-lg" style={{ fontVariant: ['tabular-nums'] }} accessibilityLiveRegion="polite">
+          {valeur}
+        </Texte>
+      </View>
+      <Pressable
+        onPress={() => regler(Math.min(20, valeur + 1))}
+        disabled={valeur >= 20}
+        accessibilityRole="button"
+        accessibilityLabel="Une personne de plus"
+        hitSlop={4}
+        className={`size-10 items-center justify-center rounded-full bg-carte active:scale-95 ${valeur >= 20 ? 'opacity-40' : ''}`}>
+        <Ionicons name="add" size={20} color={c.encre} />
+      </Pressable>
     </View>
   );
 }
@@ -193,11 +244,11 @@ function GroupeIngredients({ titre, children, className = '' }: { titre: string;
   );
 }
 
-function LigneIngredient({ ligne: l, emplacement }: { ligne: LigneRecette; emplacement?: string }) {
+function LigneIngredient({ ligne: l, quantite, emplacement }: { ligne: LigneRecette; quantite: string | null; emplacement?: string }) {
   const router = useRouter();
   const c = useCouleurs();
   const { ingredient, aliment } = l;
-  const titre = ingredient.quantite ? `${ingredient.nom}, ${ingredient.quantite}` : ingredient.nom;
+  const titre = quantite ? `${ingredient.nom}, ${quantite}` : ingredient.nom;
 
   if (aliment) {
     const etat = etatPeremption(aliment.datePeremption);

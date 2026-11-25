@@ -7,7 +7,7 @@ import { ApercuAliment } from '@/composants/aliment';
 import { IconeAppareil } from '@/composants/appareil';
 import { EnTeteDegrade } from '@/composants/en-tete-degrade';
 import { Carte, ChampRecherche, Separateur, Texte, type NomIcone } from '@/composants/ui';
-import { aConsommerEnPriorite, rechercher, type ResultatRecherche } from '@/domaine/inventaire';
+import { rechercher, type ResultatRecherche } from '@/domaine/inventaire';
 import type { Appareil } from '@/domaine/types';
 import { prendreAliment } from '@/services/actions-aliment';
 import { useDonnees } from '@/services/donnees-maison';
@@ -37,7 +37,6 @@ export default function EcranRecherche() {
   const { maison, appareils, tiroirs, aliments } = useDonnees();
   const [saisie, setSaisie] = useState('');
   const resultats = rechercher(aliments, appareils, tiroirs, saisie);
-  const priorites = aConsommerEnPriorite(aliments, appareils, tiroirs);
   const vide = !saisie.trim();
 
   return (
@@ -47,30 +46,7 @@ export default function EcranRecherche() {
       </EnTeteDegrade>
 
       {vide ? (
-        priorites.length ? (
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerClassName="gap-3 px-4 pb-8 pt-3">
-            <EnTeteGroupe
-              tuile={
-                <View className="size-9 items-center justify-center rounded-xl bg-orange-pale">
-                  <Ionicons name="time-outline" size={20} color={c.orangeTexte} />
-                </View>
-              }
-              titre="À consommer en priorité"
-              nombre={priorites.length}
-            />
-            <Texte ton="secondaire" className="-mt-1 px-1 text-sm">
-              {pluriel(priorites.length, 'aliment')} {priorites.length > 1 ? 'périmés ou bientôt périmés' : 'périmé ou bientôt périmé'}, du plus urgent au moins urgent.
-            </Texte>
-            <Carte className="overflow-hidden">
-              {priorites.map((r, i) => (
-                <View key={r.aliment.id}>
-                  {i > 0 && <Separateur />}
-                  <LigneResultat resultat={r} />
-                </View>
-              ))}
-            </Carte>
-          </ScrollView>
-        ) : aliments.length ? (
+        aliments.length ? (
           <EtatVideIcone
             icone="search"
             titre="Où est passé le beurre ?"

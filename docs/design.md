@@ -69,17 +69,32 @@ les deux, alignés. Aucune couleur en dur dans un écran.
 - Les emoji restent pour les **aliments** (c'est le contenu) ; pour l'interface,
   des icônes (Ionicons / MaterialCommunityIcons).
 
-## Structure (refonte du 2026-11-25)
+## Structure (refonte du 2026-11-25, recentrée sur les recettes)
 
-Inspirée des applis anti-gaspi les plus citées (NoWaste, KitchenPal, FridgeBuddy) :
-l'accueil répond d'abord à « qu'est-ce que je dois manger ? ».
+Iglou sert d'abord à répondre à « qu'est-ce qu'on mange ? » avec ce qu'il y a
+dans le frigo et le congélateur. Pas d'anti-gaspi mis en avant (l'utilisateur
+congèle : les dates de péremption ne sont qu'une information secondaire).
 
 - **3 onglets** : Maison, Courses, Recettes. Recherche et Réglages sont des écrans
   empilés (`src/app/(app)/recherche.tsx`, `reglages.tsx`) : la recherche s'ouvre
   par la barre de l'accueil (`/recherche?focus=1`, clavier prêt), les réglages
   par l'avatar.
 - **Accueil**, de haut en bas : salutation, maison (touchable pour changer),
-  avatar, barre de recherche ; « À manger en premier » (carrousel des aliments
-  périmés ou à finir sous 3 jours, échéance en clair) ; les appareils illustrés
-  (la porte s'ouvre au toucher) ; une ligne Courses ; « Ce qui part le plus vite ».
+  avatar, barre de recherche ; « Qu'est-ce qu'on mange ? » = **recette du jour**
+  (`recetteDuJour` : une des meilleures recettes prêtes, stable sur la journée)
+  et raccourcis « Envie de… » (ouvrent `/recettes?filtre=…`) ; carrousels
+  « Prêtes à cuisiner » et « Il manque un ingrédient » ; les appareils illustrés ;
+  une ligne Courses ; « Ce qui part le plus vite ».
+- **Recettes** : tout le carnet en grille de 2 (`CarteRecette` de
+  `src/composants/recette.tsx` : assiette teintée par catégorie `ASSIETTE`, cœur,
+  état « Tout est là » / « Il manque n »), les plus faisables d'abord ; recherche
+  par nom ou ingrédient sur tout le carnet ; filtres Prêtes (par défaut), Il manque
+  peu, Favoris, Rapides (≤ 20 min), Healthy, catégories, Toutes.
+- **Fiche recette** : favori (gardé sur l'appareil, `services/favoris.ts`),
+  nombre de personnes (les quantités suivent, `adapterQuantite`), barre du bas
+  « Cuisiner pas à pas ».
+- **Mode cuisine** (`recette/cuisine/[id]`) : écran toujours allumé
+  (`useKeepAwake`), ingrédients à sortir (à cocher), une étape par écran en grand,
+  puis **« J'ai cuisiné »** : ce qu'il reste de chaque aliment utilisé (une unité
+  de moins proposée), enregistré d'un coup (`consommerAliment`).
 - Pas de tuiles de chiffres génériques : chaque bloc mène à une action.

@@ -1,160 +1,158 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { FlatList, Pressable, ScrollView, Text, View } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
+import { FlatList, ScrollView, useWindowDimensions, View } from 'react-native';
 
 import { EnTeteDegrade } from '@/composants/en-tete-degrade';
-import { EtatVide, Puce, Texte, type NomIcone, type Ton } from '@/composants/ui';
-import { RECETTES_REPAS, estPrete, formaterDuree, suggererRecettes, type Suggestion } from '@/domaine/recettes';
+import { CarteRecette } from '@/composants/recette';
+import { Bouton, ChampRecherche, Puce, Texte } from '@/composants/ui';
+import { RECETTES, analyserRecettes, estPrete, rechercherRecettes, suggererRecettes, type Categorie, type Suggestion } from '@/domaine/recettes';
 import { useDonnees } from '@/services/donnees-maison';
+import { useFavoris } from '@/services/favoris';
 import { tic } from '@/services/haptique';
 import { useCouleurs } from '@/theme';
 
-type Filtre = 'toutes' | 'pretes' | 'antigaspi' | 'healthy';
+type Filtre = 'pretes' | 'presque' | 'favoris' | 'rapides' | 'healthy' | Categorie | 'toutes';
 
-const FILTRES: { valeur: Filtre; libelle: string }[] = [
-  { valeur: 'toutes', libelle: 'Toutes' },
+const FILTRES: { valeur: Filtre; libelle: string; emoji?: string }[] = [
   { valeur: 'pretes', libelle: 'Prêtes' },
-  { valeur: 'antigaspi', libelle: 'Anti-gaspi' },
-  { valeur: 'healthy', libelle: 'Healthy' },
+  { valeur: 'presque', libelle: 'Il manque peu' },
+  { valeur: 'favoris', libelle: 'Favoris', emoji: '❤️' },
+  { valeur: 'rapides', libelle: 'Rapides', emoji: '⏱️' },
+  { valeur: 'healthy', libelle: 'Healthy', emoji: '🥦' },
+  { valeur: 'plat', libelle: 'Plats', emoji: '🍽️' },
+  { valeur: 'soupe', libelle: 'Soupes', emoji: '🍲' },
+  { valeur: 'salade', libelle: 'Salades', emoji: '🥗' },
+  { valeur: 'entree', libelle: 'Entrées', emoji: '🥟' },
+  { valeur: 'accompagnement', libelle: 'Accompagnements', emoji: '🥔' },
+  { valeur: 'dessert', libelle: 'Desserts', emoji: '🍰' },
+  { valeur: 'petit-dej', libelle: 'Petit-déj', emoji: '🥐' },
+  { valeur: 'toutes', libelle: 'Toutes' },
 ];
 
-const garder = (filtre: Filtre, s: Suggestion) =>
-  filtre === 'pretes' ? estPrete(s) : filtre === 'antigaspi' ? s.urgents.length > 0 : filtre === 'healthy' ? !!s.recette.healthy : true;
+/** « Rapide » : prête en 20 minutes au plus. */
+const MINUTES_RAPIDE = 20;
+const ESPACE = 12;
 
-/** Recettes réalisables avec le contenu du frigo et du congélateur. */
+const estFiltre = (v: string | undefined): v is Filtre => FILTRES.some((f) => f.valeur === v);
+
+const VIDES: Record<string, string> = {
+  pretes: 'Aucune recette n’a tous ses ingrédients chez toi pour l’instant. Regarde celles où il en manque peu !',
+  presque: 'Rien d’approchant avec ce qu’il y a chez toi. Parcours toutes les recettes !',
+  favoris: 'Touche le cœur d’une recette pour la retrouver ici.',
+};
+
+/** Le carnet de recettes : tout le catalogue, les plus faisables avec ce qu'on a d'abord. */
 export default function EcranRecettes() {
   const c = useCouleurs();
+  const router = useRouter();
+  const { width } = useWindowDimensions();
   const { aliments } = useDonnees();
-  const [filtre, setFiltre] = useState<Filtre>('toutes');
+  const favoris = useFavoris();
+  // `?filtre=soupe` : raccourci « Envie de… » de l'accueil.
+  const { filtre: filtreDemande } = useLocalSearchParams<{ filtre?: string }>();
+  const [filtre, setFiltre] = useState<Filtre>(estFiltre(filtreDemande) ? filtreDemande : 'pretes');
+  const [saisie, setSaisie] = useState('');
+  // Nouveau raccourci reçu : il remplace le filtre (ajustement pendant le rendu, sans effet).
+  const [demandeVue, setDemandeVue] = useState(filtreDemande);
+  if (filtreDemande !== demandeVue) {
+    setDemandeVue(filtreDemande);
+    if (estFiltre(filtreDemande)) {
+      setFiltre(filtreDemande);
+      setSaisie('');
+    }
+  }
+  // Puis on l'efface de l'adresse : le même raccourci pourra resservir.
+  useEffect(() => {
+    if (filtreDemande) router.setParams({ filtre: undefined });
+  }, [filtreDemande, router]);
 
-  const suggestions = suggererRecettes(aliments, new Date(), RECETTES_REPAS);
-  const visibles = suggestions.filter((s) => garder(filtre, s));
-  const urgents = new Set(suggestions.flatMap((s) => s.urgents.map((a) => a.nom)));
-  const enStock = aliments.some((a) => a.quantite > 0);
+  const tout = useMemo(() => analyserRecettes(aliments, new Date(), RECETTES), [aliments]);
+  const faisables = useMemo(() => new Set(suggererRecettes(aliments, new Date(), RECETTES).map((s) => s.recette.id)), [aliments]);
+
+  const garder = (f: Filtre, s: Suggestion): boolean => {
+    const r = s.recette;
+    switch (f) {
+      case 'pretes':
+        return estPrete(s);
+      case 'presque':
+        return faisables.has(r.id) && !estPrete(s);
+      case 'favoris':
+        return favoris.has(r.id);
+      case 'rapides':
+        return r.minutes <= MINUTES_RAPIDE;
+      case 'healthy':
+        return !!r.healthy;
+      case 'toutes':
+        return true;
+      default:
+        return r.categorie === f;
+    }
+  };
+
+  const recherche = saisie.trim();
+  // La recherche porte sur tout le carnet ; les filtres reviennent quand on l'efface.
+  const visibles = recherche ? rechercherRecettes(tout, recherche) : tout.filter((s) => garder(filtre, s));
+  const largeur = Math.floor((width - 32 - ESPACE) / 2);
 
   return (
     <View className="flex-1 bg-fond">
-      <EnTeteDegrade couleurs={c.heroFrigo} motif="chef-hat" titre="Recettes" sousTitre="Avec ce qu’il y a chez toi" retour={false} />
-      {!enStock ? (
-        <EtatVide emoji="🍳" titre="Rien à cuisiner pour l’instant" texte="Ajoute des aliments dans ton frigo ou ton congélateur : les idées de recettes apparaîtront ici." />
-      ) : suggestions.length === 0 ? (
-        <EtatVide emoji="🤔" titre="Pas d’idée pour le moment" texte="Il manque un peu trop d’ingrédients pour proposer une recette. Ajoute quelques produits frais !" />
-      ) : (
-        <FlatList
-          data={visibles}
-          keyExtractor={(s) => s.recette.id}
-          contentContainerClassName="gap-3 px-4 pb-10 pt-2"
-          ListHeaderComponent={
-            <View className="gap-4 pb-1">
-              {urgents.size > 0 ? <EncartAntiGaspi noms={[...urgents]} /> : null}
-              {/* Filtres : une rangée de puces qui défile, avec le nombre de recettes de chacun. */}
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-4" contentContainerClassName="gap-2 px-4" accessibilityRole="radiogroup">
-                {FILTRES.map((f) => (
-                  <Puce
-                    key={f.valeur}
-                    compacte
-                    libelle={f.libelle}
-                    nombre={suggestions.filter((s) => garder(f.valeur, s)).length}
-                    actif={filtre === f.valeur}
-                    accessibilityRole="radio"
-                    onPress={() => {
-                      if (filtre !== f.valeur) tic();
-                      setFiltre(f.valeur);
-                    }}
-                  />
-                ))}
-              </ScrollView>
-            </View>
-          }
-          ListEmptyComponent={
-            <Texte ton="secondaire" className="px-4 py-10 text-center text-base">
-              {filtre === 'pretes'
-                ? 'Aucune recette avec tous les ingrédients. Regarde celles où il en manque peu !'
-                : filtre === 'healthy'
-                  ? 'Pas encore de recette healthy avec ce que tu as. Ajoute des légumes frais !'
-                  : 'Rien ne périme bientôt : pas d’urgence anti-gaspi.'}
+      <EnTeteDegrade
+        couleurs={c.heroRecettes}
+        motif="chef-hat"
+        titre="Recettes"
+        sousTitre={`${RECETTES.length} recettes, ${tout.filter(estPrete).length} prêtes avec ce que tu as`}
+        retour={false}>
+        <ChampRecherche valeur={saisie} onChange={setSaisie} placeholder="Gratin, poulet, crêpes…" libelle="Chercher une recette ou un ingrédient" />
+      </EnTeteDegrade>
+
+      <FlatList
+        key={largeur}
+        data={visibles}
+        keyExtractor={(s) => s.recette.id}
+        numColumns={2}
+        columnWrapperStyle={{ gap: ESPACE }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        contentContainerClassName="gap-5 px-4 pb-12 pt-1"
+        ListHeaderComponent={
+          recherche ? (
+            <Texte ton="secondaire" className="px-1 text-sm" accessibilityLiveRegion="polite">
+              {visibles.length ? `${visibles.length} recette${visibles.length > 1 ? 's' : ''} pour « ${recherche} »` : ''}
             </Texte>
-          }
-          renderItem={({ item }) => <CarteRecette suggestion={item} />}
-        />
-      )}
-    </View>
-  );
-}
-
-/** Ce qu'il faut finir vite : tuile d'icône ambre (état « à finir »), texte à l'encre sur une carte. */
-function EncartAntiGaspi({ noms }: { noms: string[] }) {
-  const c = useCouleurs();
-  const liste = noms.slice(0, 3).join(', ') + (noms.length > 3 ? '…' : '');
-  return (
-    <View style={{ boxShadow: c.ombre.carte }} className="flex-row items-center gap-4 rounded-[20px] border border-contour bg-carte p-4">
-      <View className="size-12 items-center justify-center rounded-2xl bg-orange-pale">
-        <Ionicons name="hourglass-outline" size={22} color={c.orangeTexte} />
-      </View>
-      <View className="flex-1 gap-0.5">
-        <Texte poids="titre" className="text-[17px] leading-6">
-          À finir en priorité
-        </Texte>
-        <Texte ton="secondaire" className="text-sm leading-5" numberOfLines={3}>
-          Les recettes qui utilisent {liste} passent en premier.
-        </Texte>
-      </View>
-    </View>
-  );
-}
-
-function CarteRecette({ suggestion: s }: { suggestion: Suggestion }) {
-  const router = useRouter();
-  const c = useCouleurs();
-  const prete = estPrete(s);
-  const manque = s.manquants.map((i) => i.nom.toLowerCase()).join(', ');
-  const etat = prete ? 'Tout est là' : `Il manque : ${manque}`;
-
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${s.recette.nom}, ${s.recette.minutes} minutes${s.recette.healthy ? ', healthy' : ''}. ${etat}${
-        s.urgents.length ? `. Utilise ${s.urgents.map((a) => a.nom).join(', ')}, à finir` : ''
-      }`}
-      onPress={() => router.push({ pathname: '/recette/[id]', params: { id: s.recette.id } })}
-      style={{ boxShadow: c.ombre.carte }}
-      className="flex-row gap-4 rounded-[20px] border border-contour bg-carte p-4 active:scale-[0.98] active:bg-carte-enfoncee">
-      <View className={`size-[72px] items-center justify-center rounded-[18px] ${prete ? 'bg-vert-pale' : 'bg-carte-enfoncee'}`}>
-        <Text className="text-[40px] leading-[48px]" accessible={false}>
-          {s.recette.emoji}
-        </Text>
-      </View>
-      <View className="flex-1 gap-1.5">
-        <Texte poids="titre" className="text-[17px] leading-[22px]" numberOfLines={2}>
-          {s.recette.nom}
-        </Texte>
-        <View className="flex-row flex-wrap items-center gap-x-3 gap-y-1">
-          <Meta icone="time-outline" texte={formaterDuree(s.recette.minutes)} />
-          <Meta icone="people-outline" texte={`${s.recette.portions} pers.`} />
-          {s.recette.healthy ? <Meta icone="leaf-outline" texte="Healthy" ton="vert" /> : null}
-        </View>
-        {prete ? (
-          <Meta icone="checkmark-circle" texte={`Tout est là : ${s.disponibles}/${s.requis} ingrédients`} ton="vert" />
-        ) : (
-          <Meta icone="cart-outline" texte={`Il manque : ${manque}`} ton="secondaire" lignes={1} />
-        )}
-        {s.urgents.length > 0 ? <Meta icone="hourglass-outline" texte={`À finir : ${s.urgents.map((a) => a.nom).join(', ')}`} ton="orange" lignes={1} /> : null}
-      </View>
-    </Pressable>
-  );
-}
-
-/** Ligne d'information d'une carte : petite icône et texte. */
-function Meta({ icone, texte, ton = 'secondaire', lignes }: { icone: NomIcone; texte: string; ton?: Ton; lignes?: number }) {
-  const c = useCouleurs();
-  const couleur = ton === 'vert' ? c.vertTexte : ton === 'orange' ? c.orangeTexte : c.encre3;
-  return (
-    <View className="shrink flex-row items-center gap-1">
-      <Ionicons name={icone} size={15} color={couleur} />
-      <Texte poids={ton === 'vert' || ton === 'orange' ? 'moyen' : 'normal'} ton={ton} className="shrink text-[13px]" numberOfLines={lignes}>
-        {texte}
-      </Texte>
+          ) : (
+            // Filtres : une seule rangée qui défile, avec le nombre de recettes de chacun.
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-4" contentContainerClassName="gap-2 px-4" accessibilityRole="radiogroup">
+              {FILTRES.map((f) => (
+                <Puce
+                  key={f.valeur}
+                  compacte
+                  emoji={f.emoji}
+                  libelle={f.libelle}
+                  nombre={f.valeur === 'toutes' ? undefined : tout.filter((s) => garder(f.valeur, s)).length}
+                  actif={filtre === f.valeur}
+                  accessibilityRole="radio"
+                  onPress={() => {
+                    if (filtre !== f.valeur) tic();
+                    setFiltre(f.valeur);
+                  }}
+                />
+              ))}
+            </ScrollView>
+          )
+        }
+        ListEmptyComponent={
+          <View className="items-center gap-4 px-6 py-12">
+            <Texte poids="titre" className="text-center text-lg">
+              {recherche ? 'Aucune recette trouvée' : filtre === 'favoris' ? 'Pas encore de favori' : 'Rien pour l’instant'}
+            </Texte>
+            <Texte ton="secondaire" className="text-center text-base">
+              {recherche ? `Rien ne correspond à « ${recherche} ». Essaie un ingrédient : « poulet », « courgette »…` : (VIDES[filtre] ?? 'Aucune recette dans ce filtre.')}
+            </Texte>
+            {!recherche && filtre !== 'toutes' ? <Bouton titre="Voir toutes les recettes" variante="secondaire" onPress={() => setFiltre('toutes')} /> : null}
+          </View>
+        }
+        renderItem={({ item }) => <CarteRecette suggestion={item} largeur={largeur} />}
+      />
     </View>
   );
 }

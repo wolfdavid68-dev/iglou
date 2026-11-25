@@ -1,16 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useMemo } from 'react';
 import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 
 import { Degrade } from '@/composants/appareil';
 import { EnTeteDegrade } from '@/composants/en-tete-degrade';
 import { FrigoFantome, FrigoIllustre } from '@/composants/frigo';
+import { CarteRecette, CarteRecetteDuJour } from '@/composants/recette';
 import { Bouton, BoutonFlottant, Carte, Chargement, EtatVide, Texte } from '@/composants/ui';
 import { calculerListeCourses, compterArticles } from '@/domaine/courses';
 import { emojiPourNom } from '@/domaine/emoji';
-import { etatPeremption, libellePeremption } from '@/domaine/dates';
-import { aConsommerEnPriorite, type ResultatRecherche } from '@/domaine/inventaire';
+import { RECETTES, estPrete, recetteDuJour, suggererRecettes, type Suggestion } from '@/domaine/recettes';
 import { cequiPartLePlusVite, JOURS_STATS, type Tendance } from '@/domaine/statistiques';
 import { changerDeMaison } from '@/services/changer-maison';
 import { useConsommations } from '@/services/consommations';
@@ -18,11 +19,20 @@ import { useDonnees } from '@/services/donnees-maison';
 import { useMaisons } from '@/services/maisons';
 import { useMoi } from '@/services/session';
 import { tic } from '@/services/haptique';
-import type { Aliment } from '@/domaine/types';
 import { useCouleurs } from '@/theme';
 
 const ESPACE_FRIGOS = 20;
-const LARGEUR_URGENCE = 152;
+const LARGEUR_RECETTE = 156;
+
+/** Raccourcis « Envie de… » : ouvrent l'onglet Recettes sur un filtre. */
+const ENVIES: { filtre: string; libelle: string; emoji: string }[] = [
+  { filtre: 'rapides', libelle: 'Rapide', emoji: '⏱️' },
+  { filtre: 'soupe', libelle: 'Soupe', emoji: '🍲' },
+  { filtre: 'salade', libelle: 'Salade', emoji: '🥗' },
+  { filtre: 'plat', libelle: 'Plat', emoji: '🍽️' },
+  { filtre: 'dessert', libelle: 'Dessert', emoji: '🍰' },
+  { filtre: 'petit-dej', libelle: 'Petit-déj', emoji: '🥐' },
+];
 
 export default function Maison() {
   const router = useRouter();
@@ -31,7 +41,7 @@ export default function Maison() {
   const { adhesions, maisonActiveId, choisirMaison } = useMaisons();
   const { width } = useWindowDimensions();
   const largeurFrigo = Math.min(240, Math.round(width * 0.6));
-  const priorites = aConsommerEnPriorite(aliments, appareils, tiroirs);
+  const suggestions = useMemo(() => suggererRecettes(aliments, new Date(), RECETTES), [aliments]);
   const aRacheter = compterArticles(calculerListeCourses(aliments, appareils, libres));
 
   const nouvelAppareil = () => router.push('/appareil/editer');
@@ -50,9 +60,9 @@ export default function Maison() {
           </EtatVide>
         ) : (
           <View className="gap-8 pt-2">
-            {/* 1. Ce qu'il faut manger d'abord : la raison d'ouvrir l'appli. */}
+            {/* 1. Qu'est-ce qu'on mange ? : la raison d'ouvrir l'appli. */}
             <Animated.View entering={FadeInDown.duration(350)}>
-              <AMangerEnPremier priorites={priorites} />
+              <QuOnMange suggestions={suggestions} enStock={aliments.some((a) => a.quantite > 0)} />
             </Animated.View>
 
             {/* 2. Les appareils, porte fermée : on touche pour ouvrir. */}
@@ -107,8 +117,8 @@ function TitreBloc({ titre, action, onAction, nombre }: { titre: string; action?
           {titre}
         </Texte>
         {nombre ? (
-          <View className="min-w-6 items-center rounded-full bg-orange-pale px-2 py-0.5">
-            <Texte poids="demi" ton="orange" className="text-xs" style={{ fontVariant: ['tabular-nums'] }}>
+          <View className="min-w-6 items-center rounded-full bg-frigo-pale px-2 py-0.5">
+            <Texte poids="demi" ton="frigo" className="text-xs" style={{ fontVariant: ['tabular-nums'] }}>
               {nombre}
             </Texte>
           </View>
@@ -173,83 +183,90 @@ function EnTeteAccueil({ nomMaison, onChanger }: { nomMaison: string; onChanger:
   );
 }
 
-/** « À manger en premier » : les aliments périmés ou bientôt périmés, du plus urgent au moins urgent. */
-function AMangerEnPremier({ priorites }: { priorites: ResultatRecherche[] }) {
+/**
+ * « Qu'est-ce qu'on mange ? » : la recette du jour, les raccourcis « Envie de… »,
+ * puis les recettes prêtes et celles où il ne manque qu'un ingrédient.
+ */
+function QuOnMange({ suggestions, enStock }: { suggestions: Suggestion[]; enStock: boolean }) {
   const router = useRouter();
   const c = useCouleurs();
-
-  if (priorites.length === 0) {
-    return (
-      <View className="gap-3">
-        <TitreBloc titre="À manger en premier" />
-        <View className="px-4">
-          <Carte className="flex-row items-center gap-3 p-4">
-            <View className="size-11 items-center justify-center rounded-[14px] bg-vert-pale">
-              <Ionicons name="checkmark-circle" size={22} color={c.vertTexte} />
-            </View>
-            <View className="flex-1">
-              <Texte poids="titre" className="text-base">
-                Rien ne presse
-              </Texte>
-              <Texte ton="secondaire" className="text-sm">
-                Aucun aliment ne périme dans les 3 jours.
-              </Texte>
-            </View>
-          </Carte>
-        </View>
-      </View>
-    );
-  }
+  const duJour = recetteDuJour(suggestions);
+  const autres = suggestions.filter((s) => s !== duJour);
+  const pretes = autres.filter(estPrete).slice(0, 10);
+  const presque = autres.filter((s) => s.manquants.length === 1).slice(0, 10);
+  const voirRecettes = (filtre: string) => {
+    tic();
+    router.push({ pathname: '/recettes', params: { filtre } });
+  };
 
   return (
-    <View className="gap-1">
-      <TitreBloc titre="À manger en premier" nombre={priorites.length} action="Tout voir" onAction={() => router.push('/recherche')} />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-3 px-4 pb-3 pt-2" snapToInterval={LARGEUR_URGENCE + 12} decelerationRate="fast">
-        {priorites.map(({ aliment, emplacement }) => (
-          <CarteUrgence key={aliment.id} aliment={aliment} emplacement={emplacement} />
-        ))}
-      </ScrollView>
+    <View className="gap-6">
+      <View className="gap-3">
+        <TitreBloc titre="Qu’est-ce qu’on mange ?" />
+        <View className="px-4">
+          {duJour ? (
+            <CarteRecetteDuJour suggestion={duJour} />
+          ) : (
+            <Carte className="flex-row items-center gap-3 p-4">
+              <View className="size-11 items-center justify-center rounded-[14px] bg-frigo-pale">
+                <Ionicons name="restaurant-outline" size={21} color={c.frigoTexte} />
+              </View>
+              <View className="flex-1">
+                <Texte poids="titre" className="text-base">
+                  {enStock ? 'Pas encore d’idée avec ce que tu as' : 'Ton inventaire est vide'}
+                </Texte>
+                <Texte ton="secondaire" className="text-sm">
+                  {enStock ? 'Parcours les recettes : il manque souvent peu de chose.' : 'Ajoute des aliments : les recettes faisables apparaîtront ici.'}
+                </Texte>
+              </View>
+            </Carte>
+          )}
+        </View>
+        {/* Envie de… : un toucher ouvre les recettes du genre choisi. */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2 px-4 py-1">
+          {ENVIES.map((e) => (
+            <Pressable
+              key={e.filtre}
+              onPress={() => voirRecettes(e.filtre)}
+              accessibilityRole="button"
+              accessibilityLabel={`Envie de : ${e.libelle}`}
+              style={{ boxShadow: c.ombre.carte }}
+              className="h-11 flex-row items-center gap-1.5 rounded-full border border-contour bg-carte px-4 active:scale-95 active:bg-carte-enfoncee">
+              <Text className="text-base" accessible={false}>
+                {e.emoji}
+              </Text>
+              <Texte poids="moyen" className="text-sm">
+                {e.libelle}
+              </Texte>
+            </Pressable>
+          ))}
+        </ScrollView>
+      </View>
+
+      {pretes.length > 0 ? (
+        <CarrouselRecettes titre="Prêtes à cuisiner" nombre={suggestions.filter(estPrete).length} suggestions={pretes} onTout={() => voirRecettes('pretes')} />
+      ) : null}
+      {presque.length > 0 ? <CarrouselRecettes titre="Il manque un ingrédient" suggestions={presque} onTout={() => voirRecettes('presque')} /> : null}
     </View>
   );
 }
 
-/** Carte d'un aliment à finir : gros emoji, nom, échéance colorée et rangement. */
-function CarteUrgence({ aliment, emplacement }: { aliment: Aliment; emplacement: string }) {
-  const router = useRouter();
-  const c = useCouleurs();
-  const perime = etatPeremption(aliment.datePeremption) === 'depassee';
+/** Rangée de recettes qui défile, avec « Tout voir » vers l'onglet Recettes. */
+function CarrouselRecettes({ titre, nombre, suggestions, onTout }: { titre: string; nombre?: number; suggestions: Suggestion[]; onTout: () => void }) {
   return (
-    <Pressable
-      onPress={() => {
-        tic();
-        router.push({ pathname: '/aliment/[id]', params: { id: aliment.id } });
-      }}
-      accessibilityRole="button"
-      accessibilityLabel={`${aliment.nom}, ${aliment.datePeremption ? libellePeremption(aliment.datePeremption) : ''}, ${emplacement}`}
-      style={{ width: LARGEUR_URGENCE, boxShadow: c.ombre.carte }}
-      className="gap-3 rounded-[22px] border border-contour bg-carte p-3.5 active:scale-[0.98] active:bg-carte-enfoncee">
-      <View className={`size-14 items-center justify-center rounded-full ${perime ? 'bg-rouge-pale' : 'bg-orange-pale'}`}>
-        <Text className="text-3xl" accessible={false}>
-          {emojiPourNom(aliment.nom)}
-        </Text>
-      </View>
-      <View className="gap-1">
-        <Texte poids="titre" className="text-[17px] leading-[22px]" numberOfLines={2}>
-          {aliment.nom}
-        </Texte>
-        {aliment.datePeremption ? (
-          <View className="flex-row items-center gap-1">
-            <Ionicons name="time" size={13} color={perime ? c.rougeTexte : c.orangeTexte} />
-            <Texte poids="demi" ton={perime ? 'rouge' : 'orange'} className="shrink text-xs" numberOfLines={2}>
-              {libellePeremption(aliment.datePeremption)}
-            </Texte>
-          </View>
-        ) : null}
-        <Texte ton="discret" className="text-xs" numberOfLines={1}>
-          {emplacement}
-        </Texte>
-      </View>
-    </Pressable>
+    <View className="gap-1">
+      <TitreBloc titre={titre} nombre={nombre} action="Tout voir" onAction={onTout} />
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerClassName="gap-3 px-4 pb-3 pt-2"
+        snapToInterval={LARGEUR_RECETTE + 12}
+        decelerationRate="fast">
+        {suggestions.map((s) => (
+          <CarteRecette key={s.recette.id} suggestion={s} largeur={LARGEUR_RECETTE} />
+        ))}
+      </ScrollView>
+    </View>
   );
 }
 
