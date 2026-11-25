@@ -87,8 +87,10 @@ congèle : les dates de péremption ne sont qu'une information secondaire).
   meilleures recettes prêtes, stable sur la journée), puis tout le carnet en grille de 2 (`CarteRecette` de
   `src/composants/recette.tsx` : assiette teintée par catégorie `ASSIETTE`, cœur,
   état « Tout est là » / « Il manque n »), les plus faisables d'abord ; recherche
-  par nom ou ingrédient sur tout le carnet ; filtres Prêtes (par défaut), Il manque
-  peu, Favoris, Rapides (≤ 20 min), Healthy, catégories, Toutes.
+  par nom ou ingrédient sur tout le carnet ; rangée « Catégories » (assiettes
+  rondes avec emoji et nombre ; retoucher la catégorie choisie la retire) qui se
+  **combine** avec les puces Prêtes (par défaut), Il manque peu, Favoris, Rapides
+  (≤ 20 min), Healthy, Toutes.
 - **Fiche recette** : favori (gardé sur l'appareil, `services/favoris.ts`),
   nombre de personnes (les quantités suivent, `adapterQuantite`), barre du bas
   « Cuisiner pas à pas ».
