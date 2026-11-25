@@ -52,6 +52,8 @@ const clair = {
     carte: '0 1px 2px rgba(14, 26, 43, 0.04), 0 6px 20px rgba(14, 26, 43, 0.06)',
     relief: '0 2px 6px rgba(14, 26, 43, 0.06), 0 12px 32px rgba(14, 26, 43, 0.10)',
     flottant: '0 6px 16px rgba(10, 107, 96, 0.28), 0 2px 4px rgba(14, 26, 43, 0.10)',
+    /** Barre d'onglets : ombre vers le haut au lieu d'un trait. */
+    barre: '0 -1px 0 rgba(14, 26, 43, 0.06), 0 -8px 24px rgba(14, 26, 43, 0.05)',
   },
   /** Carrosserie (porte) et intérieur éclairé des appareils illustrés. */
   carrosserie: {
@@ -98,6 +100,7 @@ const fonce: Couleurs = {
     carte: '0 0 0 rgba(0, 0, 0, 0)',
     relief: '0 12px 32px rgba(0, 0, 0, 0.45)',
     flottant: '0 8px 20px rgba(0, 0, 0, 0.5)',
+    barre: '0 -1px 0 rgba(255, 255, 255, 0.07)',
   },
   carrosserie: {
     frigo: ['#2B3749', '#1B2536'],

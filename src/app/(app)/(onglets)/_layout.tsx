@@ -5,6 +5,7 @@ import { View, type ColorValue } from 'react-native';
 import type { NomIcone } from '@/composants/ui';
 import { calculerListeCourses, compterArticles } from '@/domaine/courses';
 import { useDonnees } from '@/services/donnees-maison';
+import { tic } from '@/services/haptique';
 import { useCouleurs } from '@/theme';
 
 /** Icône d'onglet avec pastille de fond quand l'onglet est actif (Material 3). */
@@ -28,10 +29,12 @@ export default function LayoutOnglets() {
         tabBarActiveTintColor: c.frigoTexte,
         tabBarInactiveTintColor: c.encre2,
         // Une seule couleur active pour tous les onglets (couleur signature).
-        tabBarStyle: { backgroundColor: c.carte, borderTopColor: c.bordure, minHeight: 72, paddingTop: 6 },
+        tabBarStyle: { backgroundColor: c.carte, borderTopWidth: 0, boxShadow: c.ombre.barre, minHeight: 72, paddingTop: 6 },
         tabBarLabelStyle: { fontFamily: 'Inter_600SemiBold', fontSize: 12, marginTop: 2 },
         sceneStyle: { backgroundColor: c.fond },
-      }}>
+      }}
+      // Petit retour haptique à chaque changement d'onglet.
+      screenListeners={{ tabPress: () => tic() }}>
       <Tabs.Screen
         name="index"
         options={{

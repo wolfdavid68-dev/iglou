@@ -191,7 +191,10 @@ function Progression({ panier, total }: { panier: number; total: number }) {
         </Texte>
       </View>
       <View className="h-2 overflow-hidden rounded-full bg-carte-enfoncee">
-        <View className="h-full rounded-full bg-frigo-fort" style={{ width: `${part * 100}%` }} />
+        {/* Le remplissage glisse à chaque article coché. */}
+        <Animated.View
+          style={{ height: '100%', borderRadius: 999, backgroundColor: c.frigoFort, width: `${part * 100}%`, transitionProperty: 'width', transitionDuration: 350, transitionTimingFunction: 'ease-out' }}
+        />
       </View>
     </View>
   );
@@ -229,7 +232,7 @@ function AjoutLibre({ maisonId, auteur, libres }: { maisonId: string; auteur: Au
           setNom(v);
           if (erreur) setErreur(null);
         }}
-        placeholder="Ajouter un article (éponges, pain…)"
+        placeholder="Ajouter un article…"
         maxLength={40}
         returnKeyType="done"
         submitBehavior="submit"

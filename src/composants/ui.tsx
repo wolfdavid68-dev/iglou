@@ -210,11 +210,21 @@ export function EnTete({
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const horsLigne = useHorsLigne();
+  const c = useCouleurs();
   return (
     <View style={{ paddingTop: insets.top }} className={`${transparent ? '' : 'bg-fond'} ${className}`}>
-      <View className="min-h-14 flex-row items-center gap-1 px-2">
+      <View className="min-h-14 flex-row items-center gap-1 px-4">
         {retour ? (
-          <BoutonIcone icone="arrow-back" libelle="Retour" onPress={() => router.back()} />
+          // Même bouton rond en relief que dans les en-têtes givrés.
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Retour"
+            hitSlop={4}
+            onPress={() => router.back()}
+            style={{ boxShadow: c.ombre.carte }}
+            className="mr-2 size-11 items-center justify-center rounded-full border border-contour bg-carte active:scale-95 active:bg-carte-enfoncee">
+            <Ionicons name="arrow-back" size={21} color={c.encre} />
+          </Pressable>
         ) : (
           <View className="w-2" />
         )}
