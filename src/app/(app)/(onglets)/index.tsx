@@ -16,7 +16,8 @@ import { useConsommations } from '@/services/consommations';
 import { useDonnees } from '@/services/donnees-maison';
 import { useMaisons } from '@/services/maisons';
 import { useMoi } from '@/services/session';
-import { useCouleurs } from '@/theme';
+import { tic } from '@/services/haptique';
+import { useCouleurs, type Couleurs } from '@/theme';
 
 const ESPACE_FRIGOS = 20;
 
@@ -49,9 +50,9 @@ export default function Maison() {
             <Bouton titre="Ajouter un appareil" icone="add" onPress={nouvelAppareil} className="mt-2" />
           </EtatVide>
         ) : (
-          <View className="gap-3 pt-6">
+          <View className="gap-2 pt-6">
             <View className="flex-row items-baseline justify-between px-4">
-              <Texte poids="gras" className="text-lg">
+              <Texte poids="titre" className="text-xl" accessibilityRole="header">
                 Mes appareils
               </Texte>
               <Texte ton="discret" className="text-sm">
@@ -92,7 +93,7 @@ export default function Maison() {
   );
 }
 
-/** En-tête en dégradé : salutation, maison active (touchable pour changer), réglages et chiffres clés. */
+/** En-tête givré : salutation, maison active (touchable pour changer), réglages et chiffres clés. */
 function EnTeteAccueil({
   nomMaison,
   aRacheter,
@@ -116,52 +117,93 @@ function EnTeteAccueil({
       motif="snowflake"
       retour={false}
       titre={nomMaison}
-      surTitre={`${salutation()} ${prenom} 👋`}
+      surTitre={`${salutation()} ${prenom}`}
       onTitre={onChanger}
       libelleTitre={`${nomMaison}, changer de maison`}
       actions={
-        <>
-          {/* Avatar : initiale du prénom, même « verre » que BoutonVerre. */}
-          <Pressable
-            onPress={() => router.push('/reglages')}
-            accessibilityRole="button"
-            accessibilityLabel="Réglages"
-            hitSlop={4}
-            className="size-12 items-center justify-center rounded-full border border-white/25 bg-white/15 active:bg-white/30">
-            <Texte poids="gras" ton="blanc" className="text-lg">
-              {prenom.charAt(0).toUpperCase()}
-            </Texte>
-          </Pressable>
-        </>
+        // Avatar : initiale du prénom sur la couleur signature, ouvre les réglages.
+        <Pressable
+          onPress={() => {
+            tic();
+            router.push('/reglages');
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Réglages"
+          hitSlop={4}
+          style={{ boxShadow: c.ombre.carte }}
+          className="size-12 items-center justify-center rounded-full border-2 border-carte bg-frigo-fort active:scale-95 active:opacity-90">
+          <Texte poids="titre-gras" ton="blanc" className="text-xl leading-6">
+            {prenom.charAt(0).toUpperCase()}
+          </Texte>
+        </Pressable>
       }>
       <View className="flex-row gap-3">
-        <TuileChiffre valeur={aRacheter} libelle="à racheter" icone="cart-outline" onPress={() => router.push('/courses')} />
-        <TuileChiffre valeur={aSurveiller} libelle="à surveiller" icone="time-outline" onPress={aSurveiller ? () => router.push('/recherche') : undefined} />
-        <TuileChiffre valeur={total} libelle={total > 1 ? 'aliments' : 'aliment'} icone="nutrition-outline" />
+        <TuileChiffre valeur={aRacheter} libelle="à racheter" icone="cart-outline" teinte="courses" onPress={() => router.push('/courses')} />
+        <TuileChiffre
+          valeur={aSurveiller}
+          libelle="à surveiller"
+          icone="time-outline"
+          teinte="orange"
+          onPress={aSurveiller ? () => router.push('/recherche') : undefined}
+        />
+        <TuileChiffre valeur={total} libelle={total > 1 ? 'aliments' : 'aliment'} icone="nutrition-outline" teinte="frigo" />
       </View>
     </EnTeteDegrade>
   );
 }
 
+/** Teintes des tuiles chiffrées (classes écrites en entier pour Tailwind). */
+const TEINTES_TUILE = {
+  courses: { pale: 'bg-courses-pale', icone: (c: Couleurs) => c.coursesTexte },
+  orange: { pale: 'bg-orange-pale', icone: (c: Couleurs) => c.orangeTexte },
+  frigo: { pale: 'bg-frigo-pale', icone: (c: Couleurs) => c.frigoTexte },
+} as const;
+
 /** Chiffre clé de l'en-tête ; le chevron signale les tuiles qui ouvrent un écran. */
-function TuileChiffre({ valeur, libelle, icone, onPress }: { valeur: number; libelle: string; icone: NomIcone; onPress?: () => void }) {
+function TuileChiffre({
+  valeur,
+  libelle,
+  icone,
+  teinte,
+  onPress,
+}: {
+  valeur: number;
+  libelle: string;
+  icone: NomIcone;
+  teinte: keyof typeof TEINTES_TUILE;
+  onPress?: () => void;
+}) {
+  const c = useCouleurs();
+  const t = TEINTES_TUILE[teinte];
   return (
     <Pressable
-      onPress={onPress}
+      onPress={
+        onPress
+          ? () => {
+              tic();
+              onPress();
+            }
+          : undefined
+      }
       disabled={!onPress}
       accessibilityRole={onPress ? 'button' : 'text'}
       accessibilityLabel={`${valeur} ${libelle}`}
-      className="flex-1 gap-1 rounded-2xl border border-white/25 bg-white/15 p-3 active:bg-white/25">
+      style={{ boxShadow: c.ombre.carte }}
+      className={`flex-1 gap-2 rounded-[20px] border border-contour bg-carte p-3 ${onPress ? 'active:scale-[0.98] active:bg-carte-enfoncee' : ''}`}>
       <View className="flex-row items-center justify-between">
-        <Ionicons name={icone} size={18} color="rgba(255,255,255,0.85)" />
-        {onPress ? <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.7)" /> : null}
+        <View className={`size-8 items-center justify-center rounded-[10px] ${t.pale}`}>
+          <Ionicons name={icone} size={17} color={t.icone(c)} />
+        </View>
+        {onPress ? <Ionicons name="chevron-forward" size={16} color={c.encre3} /> : null}
       </View>
-      <Texte poids="gras" ton="blanc" className="text-2xl">
-        {valeur}
-      </Texte>
-      <Texte poids="moyen" ton="aucun" className="text-xs text-white/85" numberOfLines={1}>
-        {libelle}
-      </Texte>
+      <View>
+        <Texte poids="titre-gras" className="text-[28px] leading-8" style={{ fontVariant: ['tabular-nums'] }}>
+          {valeur}
+        </Texte>
+        <Texte poids="moyen" ton="secondaire" className="text-[13px] leading-4" numberOfLines={1}>
+          {libelle}
+        </Texte>
+      </View>
     </Pressable>
   );
 }
@@ -177,13 +219,13 @@ function CarteTendances({ tendances }: { tendances: Tendance[] }) {
   const record = tendances[0]?.sorties ?? 1;
 
   return (
-    <Carte className="gap-4 p-4 shadow-sm">
+    <Carte className="gap-4 p-4">
       <View className="flex-row items-center gap-3">
-        <View className="size-10 items-center justify-center rounded-2xl bg-orange-pale">
-          <Ionicons name="flame" size={20} color={c.orangeTexte} />
+        <View className="size-11 items-center justify-center rounded-[14px] bg-courses-pale">
+          <Ionicons name="trending-up" size={22} color={c.coursesTexte} />
         </View>
         <View className="flex-1">
-          <Texte poids="demi" className="text-lg">
+          <Texte poids="titre" className="text-lg leading-6" accessibilityRole="header">
             Ce qui part le plus vite
           </Texte>
           <Texte ton="discret" className="text-xs">
@@ -193,7 +235,7 @@ function CarteTendances({ tendances }: { tendances: Tendance[] }) {
       </View>
 
       {tendances.length === 0 ? (
-        <Texte ton="secondaire" className="text-sm">
+        <Texte ton="secondaire" className="text-sm leading-5">
           Touche « − » sur un aliment quand tu en prends : ses sorties apparaîtront ici pour repérer ce qu’il faut racheter le plus souvent.
         </Texte>
       ) : (
@@ -204,24 +246,27 @@ function CarteTendances({ tendances }: { tendances: Tendance[] }) {
               className="flex-row items-center gap-3"
               accessible
               accessibilityLabel={`${i + 1}. ${t.nom}, sorti ${t.sorties} fois`}>
-              <Text className="w-7 text-center text-xl" accessible={false}>
-                {emojiPourNom(t.nom)}
-              </Text>
-              <View className="flex-1 gap-1">
+              <View className="size-9 items-center justify-center rounded-[12px] bg-carte-enfoncee">
+                <Text className="text-lg" accessible={false}>
+                  {emojiPourNom(t.nom)}
+                </Text>
+              </View>
+              <View className="flex-1 gap-1.5">
                 <View className="flex-row items-baseline justify-between gap-2">
                   <Texte poids="moyen" className="shrink text-sm" numberOfLines={1}>
                     {t.nom}
                   </Texte>
-                  <Texte poids="demi" ton="secondaire" className="text-xs">
+                  <Texte poids="demi" ton={i === 0 ? 'courses' : 'secondaire'} className="text-xs" style={{ fontVariant: ['tabular-nums'] }}>
                     {t.sorties}×
                   </Texte>
                 </View>
+                {/* Barre : le premier en pleine couleur, les suivants plus discrets. */}
                 <View className="h-2 overflow-hidden rounded-full bg-carte-enfoncee">
                   <Degrade
-                    colors={i === 0 ? [c.orange, c.courses] : c.hero}
+                    colors={i === 0 ? [c.courses, c.coursesFort] : [c.courses, c.courses]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
-                    className="h-full rounded-full"
+                    className={`h-full rounded-full ${i === 0 ? '' : 'opacity-45'}`}
                     style={{ width: `${Math.max(8, (t.sorties / record) * 100)}%` }}
                   />
                 </View>

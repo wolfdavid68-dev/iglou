@@ -1,9 +1,10 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 
 import { IconeAppareil } from '@/composants/appareil';
 import { Jauge } from '@/composants/jauge';
-import { BoutonIcone, Carte, Chargement, EnTete, EtatVide, Ligne, Separateur, Texte } from '@/composants/ui';
+import { BoutonIcone, Carte, Chargement, EnTete, EtatVide, Ligne, Separateur, Texte, type NomIcone, type Ton } from '@/composants/ui';
 import { etatPeremption, formaterDateCourte, ilYA, libellePeremption } from '@/domaine/dates';
 import { emojiPourNom } from '@/domaine/emoji';
 import { decrementer, estEpuise, incrementer, manque, pasPourUnite } from '@/domaine/quantites';
@@ -83,15 +84,25 @@ export default function FicheAliment() {
           <BoutonIcone icone="create-outline" libelle="Modifier" onPress={() => router.push({ pathname: '/aliment/editer', params: { id: a.id } })} />
         }
       />
-      <View className="flex-1 gap-4 px-4 pb-8">
-        <Carte className="items-center gap-4 p-4">
-          <Text className="text-6xl" accessible={false}>
-            {emojiPourNom(a.nom)}
-          </Text>
-          <View className="flex-row items-center gap-6">
-            <BoutonIcone icone="remove" libelle={`Retirer ${formaterNombre(pas)}`} onPress={() => ajuster(-1)} desactive={a.quantite <= 0} taille={28} className="size-14 bg-carte-enfoncee" />
-            <View className="min-w-28 items-center" accessibilityLiveRegion="polite">
-              <Texte poids="gras" ton={epuise ? 'rouge' : 'encre'} className="text-4xl">
+      <ScrollView contentContainerClassName="gap-5 px-4 pb-10 pt-2">
+        {/* Le stock d'abord : l'aliment, sa quantité en grand et les boutons pour l'ajuster. */}
+        <Carte className="items-center gap-5 px-5 pb-5 pt-6">
+          <View className="size-24 items-center justify-center rounded-[28px] bg-carte-enfoncee">
+            <Text className="text-[56px] leading-[68px]" accessible={false}>
+              {emojiPourNom(a.nom)}
+            </Text>
+          </View>
+          <View className="w-full flex-row items-center justify-between">
+            <BoutonIcone
+              icone="remove"
+              libelle={`Retirer ${formaterNombre(pas)}`}
+              onPress={() => ajuster(-1)}
+              desactive={a.quantite <= 0}
+              taille={28}
+              className="size-16 bg-carte-enfoncee active:scale-95"
+            />
+            <View className="flex-1 items-center" accessibilityLiveRegion="polite">
+              <Texte poids="titre-gras" ton={epuise ? 'rouge' : 'encre'} className="text-[56px] leading-[62px]" style={{ fontVariant: ['tabular-nums'] }}>
                 {formaterNombre(a.quantite)}
               </Texte>
               <Texte ton="secondaire" className="text-sm">
@@ -99,12 +110,16 @@ export default function FicheAliment() {
                 {unite}
               </Texte>
             </View>
-            <BoutonIcone icone="add" libelle={`Ajouter ${formaterNombre(pas)}`} onPress={() => ajuster(1)} taille={28} className="size-14 bg-carte-enfoncee" />
+            <BoutonIcone icone="add" libelle={`Ajouter ${formaterNombre(pas)}`} onPress={() => ajuster(1)} taille={28} className="size-16 bg-carte-enfoncee active:scale-95" />
           </View>
           <Jauge stock={a} className="w-full" />
-          <Texte ton={epuise ? 'rouge' : aAcheter > 0 ? 'orange' : 'vert'} poids="moyen" className="text-sm">
-            {epuise ? 'Épuisé · dans la liste de courses' : aAcheter > 0 ? `${formaterNombre(aAcheter)}${unite} à racheter` : 'Stock plein'}
-          </Texte>
+          {epuise ? (
+            <Etat icone="alert-circle" ton="rouge" fond="bg-rouge-pale" texte="Épuisé, dans la liste de courses" />
+          ) : aAcheter > 0 ? (
+            <Etat icone="cart-outline" ton="courses" fond="bg-courses-pale" texte={`${formaterNombre(aAcheter)}${unite} à racheter`} />
+          ) : (
+            <Etat icone="checkmark-circle" ton="vert" fond="bg-vert-pale" texte="Stock plein" />
+          )}
         </Carte>
 
         <Carte className="overflow-hidden p-0">
@@ -150,7 +165,21 @@ export default function FicheAliment() {
           <Separateur />
           <Ligne icone="trash-outline" titre="Supprimer" danger onPress={supprimer} />
         </Carte>
-      </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+/** État du stock : pastille teintée avec icône (vert plein, courses à racheter, rouge épuisé). */
+function Etat({ icone, ton, fond, texte }: { icone: NomIcone; ton: Extract<Ton, 'vert' | 'courses' | 'rouge'>; fond: string; texte: string }) {
+  const c = useCouleurs();
+  const couleur = ton === 'vert' ? c.vertTexte : ton === 'courses' ? c.coursesTexte : c.rougeTexte;
+  return (
+    <View className={`flex-row items-center gap-1.5 rounded-full py-1.5 pl-2.5 pr-3.5 ${fond}`}>
+      <Ionicons name={icone} size={16} color={couleur} />
+      <Texte poids="demi" ton={ton} className="text-sm">
+        {texte}
+      </Texte>
     </View>
   );
 }

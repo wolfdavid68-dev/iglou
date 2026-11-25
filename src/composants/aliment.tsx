@@ -35,7 +35,7 @@ export function ApercuAliment({ aliment, compact = false }: { aliment: Aliment; 
           {peremption === 'depassee' || peremption === 'proche' ? (
             <Ionicons name="time-outline" size={14} color={peremption === 'depassee' ? c.rougeTexte : c.orangeTexte} />
           ) : null}
-          <Texte ton={epuise ? 'rouge' : 'secondaire'} poids={epuise ? 'demi' : 'normal'} className="text-xs">
+          <Texte ton={epuise ? 'rouge' : 'secondaire'} poids={epuise ? 'demi' : 'normal'} className="text-xs" style={{ fontVariant: ['tabular-nums'] }}>
             {texteStock(aliment)}
           </Texte>
         </View>

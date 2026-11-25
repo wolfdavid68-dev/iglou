@@ -20,14 +20,16 @@ function Boite({ d }: { d: Dialogue }) {
   const valider = () => {
     if (!vide) repondre(texte);
   };
-  const empilees = d.actions.length > 2 || d.actions.some((a) => a.libelle.length > 14);
+  const empilees = d.actions.length > 2 || d.actions.some((a) => a.libelle.length > 11);
+  // Empilées : l'action principale en haut, « Annuler » en bas. Côte à côte : l'action à droite.
+  const actions = empilees ? [...d.actions].sort((a, b) => rang(a.style) - rang(b.style)) : d.actions;
   return (
-    <FondModale onFermer={() => repondre(null)} className="gap-3">
-      <Texte poids="gras" className="text-xl" accessibilityRole="header">
+    <FondModale onFermer={() => repondre(null)} className="gap-2">
+      <Texte poids="titre-gras" className="text-[22px] leading-7" accessibilityRole="header">
         {d.titre}
       </Texte>
       {d.message ? (
-        <Texte ton="secondaire" className="text-base">
+        <Texte ton="secondaire" className="text-base leading-6">
           {d.message}
         </Texte>
       ) : null}
@@ -45,19 +47,26 @@ function Boite({ d }: { d: Dialogue }) {
           selectTextOnFocus
           returnKeyType="done"
           onSubmitEditing={valider}
+          className="mt-2"
         />
       ) : null}
-      <View className={empilees ? 'mt-2 gap-2' : 'mt-2 flex-row justify-end gap-2'}>
-        {d.actions.map((a) => (
+      <View className={empilees ? 'mt-4 gap-2' : 'mt-4 flex-row gap-3'}>
+        {actions.map((a) => (
           <Bouton
             key={a.libelle}
             titre={a.libelle}
-            variante={a.style === 'danger' ? 'danger' : a.style === 'principal' ? 'principal' : 'discret'}
+            // Action destructrice : rouge plein, texte blanc ; « Annuler » reste discret quand les boutons sont empilés.
+            variante={a.style === 'danger' || a.style === 'principal' ? 'principal' : a.style === 'annuler' && empilees ? 'discret' : 'secondaire'}
+            fond={a.style === 'danger' ? 'bg-rouge-fort' : undefined}
             desactive={a.valeur === SAISIE && vide}
             onPress={() => (a.valeur === SAISIE ? valider() : repondre(a.valeur))}
+            className={empilees ? '' : 'flex-1 px-3'}
           />
         ))}
       </View>
     </FondModale>
   );
 }
+
+/** Ordre des boutons empilés : principal, danger, autres, puis annuler. */
+const rang = (style?: string) => (style === 'principal' ? 0 : style === 'danger' ? 1 : style === 'annuler' ? 3 : 2);

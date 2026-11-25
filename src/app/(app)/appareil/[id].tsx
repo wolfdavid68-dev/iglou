@@ -275,7 +275,7 @@ function GrilleTiroirs({ maisonId, appareil, tiroirs, aliments, appareils, tousT
           </Animated.View>
         ))}
         {masques > 0 && (
-          <Pressable accessibilityRole="button" onPress={() => basculerRayon(null)} className="flex-row items-center gap-2 px-1 active:opacity-70">
+          <Pressable accessibilityRole="button" onPress={() => basculerRayon(null)} className="min-h-12 flex-row items-center gap-2 px-1 active:opacity-70">
             <Ionicons name="funnel-outline" size={16} color={c.encre3} />
             <Texte ton="discret" className="flex-1 text-sm">
               {masques > 1 ? `${masques} tiroirs masqués` : '1 tiroir masqué'} par le filtre.{' '}
@@ -314,20 +314,22 @@ function GrilleTiroirs({ maisonId, appareil, tiroirs, aliments, appareils, tousT
               })
             }
             pointerEvents="none"
-            style={{ height: HAUTEUR_CORBEILLE, bottom: insets.bottom + 16 }}
-            className={`absolute left-4 right-4 flex-row items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-rouge ${
+            style={{ height: HAUTEUR_CORBEILLE, bottom: insets.bottom + 16, boxShadow: c.ombre.relief }}
+            className={`absolute left-4 right-4 flex-row items-center justify-center gap-3 rounded-[20px] border-2 border-dashed border-rouge ${
               glisse.cible === CORBEILLE ? 'bg-rouge-fort' : 'bg-rouge-pale'
             }`}
             accessibilityLiveRegion="polite">
-            <Ionicons name="trash-outline" size={28} color={glisse.cible === CORBEILLE ? c.blanc : c.rougeTexte} />
+            <View className={`size-12 items-center justify-center rounded-full ${glisse.cible === CORBEILLE ? 'bg-white/20' : 'bg-carte'}`}>
+              <Ionicons name={glisse.cible === CORBEILLE ? 'trash' : 'trash-outline'} size={24} color={glisse.cible === CORBEILLE ? c.blanc : c.rougeTexte} />
+            </View>
             <Texte poids="demi" ton={glisse.cible === CORBEILLE ? 'blanc' : 'rouge'} className="text-base">
               {glisse.cible === CORBEILLE ? 'Lâcher pour supprimer' : 'Glisser ici pour supprimer'}
             </Texte>
           </View>
           <Animated.View
             pointerEvents="none"
-            style={[{ width: LARGEUR_FANTOME }, styleFantome]}
-            className="absolute left-0 top-0 rounded-2xl border border-bordure bg-carte p-3 opacity-95 shadow-xl">
+            style={[{ width: LARGEUR_FANTOME, boxShadow: c.ombre.relief }, styleFantome]}
+            className="absolute left-0 top-0 rounded-[18px] border border-contour bg-carte p-3">
             <ApercuAliment aliment={glisse.aliment} compact />
           </Animated.View>
         </>
@@ -435,7 +437,7 @@ function PanneauCibles({
 
   return (
     <Animated.View entering={FadeIn.duration(150)} pointerEvents="none" style={{ bottom: bas }} className="absolute inset-x-0 top-0 gap-2 bg-fond/95 px-4 pt-3">
-      <Texte poids="demi" ton="secondaire" className="text-center text-sm">
+      <Texte poids="titre" ton="secondaire" className="pb-1 text-center text-base">
         Lâche dans un tiroir
       </Texte>
       {lignes.map((ligne, i) => (
@@ -448,14 +450,14 @@ function PanneauCibles({
               <CaseCible
                 key={k.id}
                 onMesure={ici ? undefined : (vue) => mesurer(k.id, vue)}
-                className={`flex-1 flex-row items-center justify-center gap-2 rounded-2xl border-2 px-3 ${
+                className={`flex-1 flex-row items-center justify-center gap-2 rounded-[18px] border-2 px-3 ${
                   ici
                     ? 'border-dashed border-bordure opacity-50'
                     : survole
                       ? `${classes.bordure} ${classes.pale}`
                       : k.nombre == null
                         ? 'border-dashed border-encre-3/50 bg-carte'
-                        : 'border-bordure bg-facade'
+                        : 'border-contour bg-facade'
                 }`}>
                 <Texte poids={survole ? 'gras' : 'demi'} className="shrink text-base" numberOfLines={1}>
                   {k.nom}
@@ -517,7 +519,7 @@ function CarteTiroir({
   const c = useCouleurs();
   const classes = classesAppareil[appareil.type];
   return (
-    <View className="overflow-hidden rounded-3xl border-2 border-vitre-bord bg-vitre shadow-sm">
+    <View style={{ boxShadow: c.ombre.carte }} className="overflow-hidden rounded-[20px] border border-contour bg-vitre">
       {/* Bac vitré */}
       <View className="min-h-20 flex-row flex-wrap p-1.5">
         {contenu.length === 0 ? (
@@ -541,9 +543,9 @@ function CarteTiroir({
       </View>
 
       {/* Façade du tiroir, avec sa poignée */}
-      <View className="flex-row items-center gap-3 border-t border-bordure bg-facade py-1.5 pl-4 pr-1.5">
+      <View className="flex-row items-center gap-2 border-t border-contour bg-facade py-2 pl-4 pr-2">
         <View pointerEvents="none" className="absolute left-1/2 top-1.5 -ml-10 h-1.5 w-20 rounded-full bg-poignee" />
-        <Texte poids="demi" className="shrink text-base" numberOfLines={1}>
+        <Texte poids="titre" className="shrink text-[17px] leading-6" numberOfLines={1} accessibilityRole="header">
           {tiroir.nom}
         </Texte>
         <PastilleCompte nombre={contenu.length} teinte={appareil.type} />
@@ -551,9 +553,12 @@ function CarteTiroir({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Ajouter un aliment dans ${tiroir.nom}`}
-          onPress={onAjouter}
-          className={`size-12 items-center justify-center rounded-full active:opacity-70 ${classes.pale}`}>
-          <Ionicons name="add" size={24} color={couleurTexteAppareil(c, appareil.type)} />
+          onPress={() => {
+            tic();
+            onAjouter();
+          }}
+          className={`size-12 items-center justify-center rounded-full active:scale-95 active:opacity-80 ${classes.pale}`}>
+          <Ionicons name="add" size={26} color={couleurTexteAppareil(c, appareil.type)} />
         </Pressable>
       </View>
     </View>
@@ -605,7 +610,7 @@ function LigneAliment({
           else if (e.nativeEvent.actionName === 'supprimer') onSupprimer();
           else onToucher();
         }}
-        className={`min-h-12 select-none justify-center rounded-2xl bg-carte/80 px-2 py-1.5 active:bg-carte ${masque ? 'opacity-30' : ''}`}>
+        className={`min-h-12 select-none justify-center rounded-[14px] border border-contour bg-carte/85 px-1.5 py-1.5 ${masque ? 'opacity-30' : ''}`}>
         {/* Le contenu laisse passer le toucher : toute la bulle réagit, pas seulement l'emoji. */}
         <View pointerEvents="none" className="flex-1 flex-row">
           <ApercuAliment aliment={aliment} compact />
