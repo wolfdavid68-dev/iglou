@@ -10,6 +10,9 @@ import { RECETTES_BRUTES_8 } from './recettes-donnees-8';
 import { RECETTES_BRUTES_9 } from './recettes-donnees-9';
 import { RECETTES_BRUTES_10 } from './recettes-donnees-10';
 import { RECETTES_BRUTES_11 } from './recettes-donnees-11';
+import { RECETTES_BRUTES_12 } from './recettes-donnees-12';
+import { RECETTES_BRUTES_13 } from './recettes-donnees-13';
+import { RECETTES_BRUTES_14 } from './recettes-donnees-14';
 import { INGREDIENTS, type CleIngredient, type DefIngredient } from './recettes-ingredients';
 import { normaliser } from './texte';
 import type { Aliment, CourseLibre } from './types';
@@ -161,7 +164,7 @@ export const HEALTHY_EXISTANTES = new Set([
   'soupe-asiatique',
 ]);
 
-export const RECETTES: Recette[] = [...RECETTES_BRUTES, ...RECETTES_BRUTES_2, ...RECETTES_BRUTES_3, ...RECETTES_BRUTES_4, ...RECETTES_BRUTES_5, ...RECETTES_BRUTES_6, ...RECETTES_BRUTES_7, ...RECETTES_BRUTES_8, ...RECETTES_BRUTES_9, ...RECETTES_BRUTES_10, ...RECETTES_BRUTES_11].map(
+export const RECETTES: Recette[] = [...RECETTES_BRUTES, ...RECETTES_BRUTES_2, ...RECETTES_BRUTES_3, ...RECETTES_BRUTES_4, ...RECETTES_BRUTES_5, ...RECETTES_BRUTES_6, ...RECETTES_BRUTES_7, ...RECETTES_BRUTES_8, ...RECETTES_BRUTES_9, ...RECETTES_BRUTES_10, ...RECETTES_BRUTES_11, ...RECETTES_BRUTES_12, ...RECETTES_BRUTES_13, ...RECETTES_BRUTES_14].map(
   (r) => ({
     ...r,
     healthy: r.healthy === true || HEALTHY_EXISTANTES.has(r.id),
