@@ -12,7 +12,15 @@ export type NomIcone = ComponentProps<typeof Ionicons>['name'];
 
 /* ---------------- Texte ---------------- */
 
-const POIDS = { normal: 'font-inter', moyen: 'font-inter-moyen', demi: 'font-inter-demi', gras: 'font-inter-gras' } as const;
+const POIDS = {
+  normal: 'font-inter',
+  moyen: 'font-inter-moyen',
+  demi: 'font-inter-demi',
+  gras: 'font-inter-gras',
+  /** Bricolage Grotesque : titres, grands chiffres. */
+  titre: 'font-titre tracking-tight',
+  'titre-gras': 'font-titre-gras tracking-tight',
+} as const;
 const TONS = {
   encre: 'text-encre',
   secondaire: 'text-encre-2',
@@ -45,7 +53,7 @@ export function Texte({
 }
 
 export const Titre = ({ children, className = '' }: { children: ReactNode; className?: string }) => (
-  <Texte poids="gras" className={`text-2xl ${className}`} numberOfLines={2}>
+  <Texte poids="titre-gras" className={`text-[26px] leading-8 ${className}`} numberOfLines={2}>
     {children}
   </Texte>
 );
@@ -54,8 +62,8 @@ export const Titre = ({ children, className = '' }: { children: ReactNode; class
 
 type Variante = 'principal' | 'secondaire' | 'danger' | 'discret';
 const FOND_BOUTON: Record<Variante, string> = {
-  principal: 'bg-frigo-fort active:opacity-80',
-  secondaire: 'bg-carte border border-bordure active:bg-carte-enfoncee',
+  principal: 'bg-frigo-fort active:opacity-90',
+  secondaire: 'bg-carte border border-contour active:bg-carte-enfoncee',
   danger: 'bg-rouge-pale active:opacity-80',
   discret: 'active:bg-carte-enfoncee',
 };
@@ -85,13 +93,19 @@ export function Bouton({
   const ton = TON_BOUTON[variante];
   const couleurIcone = ton === 'blanc' ? c.blanc : ton === 'rouge' ? c.rougeTexte : ton === 'secondaire' ? c.encre2 : c.encre;
   const inactif = desactive || chargement;
+  // Relief : ombre teintée sous l'action principale, ombre douce sous le bouton secondaire.
+  const ombre = inactif ? undefined : variante === 'principal' ? (fond ? c.ombre.carte : c.ombre.flottant) : variante === 'secondaire' ? c.ombre.carte : undefined;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ disabled: inactif, busy: chargement }}
-      onPress={onPress}
+      onPress={() => {
+        if (variante === 'principal') tic();
+        onPress();
+      }}
       disabled={inactif}
-      className={`min-h-12 flex-row items-center justify-center gap-2 rounded-2xl px-5 ${
+      style={ombre ? { boxShadow: ombre } : undefined}
+      className={`min-h-[52px] flex-row items-center justify-center gap-2 rounded-[18px] px-5 active:scale-[0.98] ${
         variante === 'principal' && fond ? `${fond} active:opacity-80` : FOND_BOUTON[variante]
       } ${inactif ? 'opacity-50' : ''} ${className}`}>
       {chargement ? (
@@ -157,7 +171,7 @@ export function Champ({
         placeholderTextColor={c.encre3}
         accessibilityLabel={libelle}
         {...props}
-        className={`min-h-12 rounded-xl border bg-carte px-4 py-3 font-inter text-base text-encre ${
+        className={`min-h-[52px] rounded-2xl border bg-carte px-4 py-3 font-inter text-base text-encre ${
           erreur ? 'border-rouge-texte' : 'border-bordure focus:border-frigo-texte'
         }`}
       />
@@ -205,7 +219,7 @@ export function EnTete({
           <View className="w-2" />
         )}
         <View className="flex-1 py-2">
-          <Texte poids="gras" className="text-xl" numberOfLines={1}>
+          <Texte poids="titre-gras" className="text-[22px] leading-7" numberOfLines={1}>
             {titre}
           </Texte>
           {sousTitre ? (
@@ -228,8 +242,12 @@ export function BoutonFlottant({ icone = 'add', libelle, texte, onPress }: { ico
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={libelle}
-      onPress={onPress}
-      className={`absolute bottom-5 right-5 h-16 flex-row items-center justify-center gap-2 rounded-2xl bg-frigo-fort shadow-lg active:scale-95 active:opacity-90 ${texte ? 'pl-5 pr-6' : 'w-16'}`}>
+      onPress={() => {
+        tic();
+        onPress();
+      }}
+      style={{ boxShadow: c.ombre.flottant }}
+      className={`absolute bottom-5 right-5 h-16 flex-row items-center justify-center gap-2 rounded-[22px] bg-frigo-fort active:scale-95 active:opacity-90 ${texte ? 'pl-5 pr-6' : 'w-16'}`}>
       <Ionicons name={icone} size={texte ? 26 : 30} color={c.blanc} />
       {texte ? (
         <Texte poids="demi" ton="blanc" className="text-base">
@@ -254,8 +272,14 @@ export function BandeauHorsLigne({ visible }: { visible: boolean }) {
   );
 }
 
+/** Surface blanche : filet très fin et ombre douce en clair, filet seul en sombre. */
 export function Carte({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <View className={`rounded-2xl border border-bordure bg-carte ${className}`}>{children}</View>;
+  const c = useCouleurs();
+  return (
+    <View style={{ boxShadow: c.ombre.carte }} className={`rounded-[20px] border border-contour bg-carte ${className}`}>
+      {children}
+    </View>
+  );
 }
 
 export function EtatVide({ emoji, titre, texte, children }: { emoji: string; titre: string; texte?: string; children?: ReactNode }) {
@@ -264,7 +288,7 @@ export function EtatVide({ emoji, titre, texte, children }: { emoji: string; tit
       <Text className="text-6xl" accessible={false}>
         {emoji}
       </Text>
-      <Texte poids="demi" className="text-center text-lg">
+      <Texte poids="titre" className="text-center text-xl">
         {titre}
       </Texte>
       {texte ? (
@@ -311,10 +335,12 @@ export function Segments<T extends string>({
   teinte?: Teinte;
 }) {
   const t = TEINTES[teinte];
+  const c = useCouleurs();
   return (
     <View className="gap-1.5">
       {libelle && <Libelle>{libelle}</Libelle>}
-      <View className="flex-row flex-wrap gap-2" accessibilityRole="radiogroup">
+      {/* Rail enfoncé, option choisie en relief (contrôle segmenté). */}
+      <View className="flex-row flex-wrap gap-1 self-start rounded-[18px] bg-carte-enfoncee p-1" accessibilityRole="radiogroup">
         {options.map((o) => {
           const actif = o.valeur === valeur;
           return (
@@ -322,10 +348,12 @@ export function Segments<T extends string>({
               key={o.valeur}
               accessibilityRole="radio"
               accessibilityState={{ checked: actif }}
-              onPress={() => onChange(o.valeur)}
-              className={`min-h-12 min-w-12 items-center justify-center rounded-xl border px-4 ${
-                actif ? t.actif : 'border-bordure bg-carte active:bg-carte-enfoncee'
-              }`}>
+              onPress={() => {
+                if (!actif) tic();
+                onChange(o.valeur);
+              }}
+              style={actif ? { boxShadow: c.ombre.carte } : undefined}
+              className={`min-h-12 min-w-12 items-center justify-center rounded-[14px] px-4 ${actif ? 'bg-carte' : 'active:opacity-70'}`}>
               <Texte poids={actif ? 'demi' : 'normal'} ton={actif ? t.ton : 'encre'}>
                 {o.libelle}
               </Texte>
@@ -362,7 +390,11 @@ export function Ligne({
       disabled={!onPress}
       accessibilityRole={onPress ? 'button' : undefined}
       className="min-h-14 flex-row items-center gap-3 px-4 py-3 active:bg-carte-enfoncee">
-      {icone && <Ionicons name={icone} size={22} color={danger ? c.rougeTexte : (couleurIcone ?? c.encre2)} />}
+      {icone && (
+        <View className={`size-9 items-center justify-center rounded-xl ${danger ? 'bg-rouge-pale' : 'bg-carte-enfoncee'}`}>
+          <Ionicons name={icone} size={19} color={danger ? c.rougeTexte : (couleurIcone ?? c.encre2)} />
+        </View>
+      )}
       <View className="flex-1">
         <Texte ton={danger ? 'rouge' : 'encre'} poids="moyen" className="text-base" numberOfLines={1}>
           {titre}
@@ -378,11 +410,11 @@ export function Ligne({
   );
 }
 
-export const Separateur = () => <View className="ml-4 h-px bg-bordure" />;
+export const Separateur = () => <View className="ml-4 h-px bg-contour" />;
 
 export function TitreSection({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <Texte poids="demi" ton="secondaire" className={`px-1 pb-2 pt-6 text-xs uppercase tracking-wider ${className}`}>
+    <Texte poids="titre" className={`px-1 pb-2.5 pt-7 text-lg ${className}`} accessibilityRole="header">
       {children}
     </Texte>
   );
@@ -471,7 +503,7 @@ export function Compteur({
         accessibilityLabel={`Diminuer ${libelle}`}
         disabled={valeur <= min}
         onPress={() => regler(Math.max(min, arrondi(valeur - pas)))}
-        className={`size-12 items-center justify-center rounded-xl border border-bordure bg-carte active:bg-carte-enfoncee ${valeur <= min ? 'opacity-40' : ''}`}>
+        className={`size-12 items-center justify-center rounded-full bg-carte-enfoncee active:scale-95 active:opacity-70 ${valeur <= min ? 'opacity-40' : ''}`}>
         <Ionicons name="remove" size={22} color={c.encre} />
       </Pressable>
       <View className="flex-row items-center gap-1.5">
@@ -486,7 +518,7 @@ export function Compteur({
           maxLength={9}
           accessibilityLabel={libelle}
           accessibilityHint="Tape un nombre ou utilise les boutons moins et plus."
-          className="h-12 w-24 rounded-xl border border-bordure bg-carte px-2 text-center font-inter-demi text-lg text-encre focus:border-frigo-texte"
+          className="h-12 w-24 rounded-2xl border border-bordure bg-carte px-2 text-center font-titre text-xl text-encre focus:border-frigo-texte"
         />
         {suffixe ? (
           <Texte poids="demi" className="text-lg">
@@ -499,7 +531,7 @@ export function Compteur({
         accessibilityLabel={`Augmenter ${libelle}`}
         disabled={valeur >= max}
         onPress={() => regler(Math.min(max, arrondi(valeur + pas)))}
-        className={`size-12 items-center justify-center rounded-xl border border-bordure bg-carte active:bg-carte-enfoncee ${valeur >= max ? 'opacity-40' : ''}`}>
+        className={`size-12 items-center justify-center rounded-full bg-carte-enfoncee active:scale-95 active:opacity-70 ${valeur >= max ? 'opacity-40' : ''}`}>
         <Ionicons name="add" size={22} color={c.encre} />
       </Pressable>
     </View>
@@ -548,7 +580,7 @@ export function Puce({
   accessibilityRole?: 'button' | 'checkbox' | 'radio';
 }) {
   const t = TEINTES[teinte];
-  const fond = discrete ? 'active:bg-carte-enfoncee' : actif ? t.actif : 'border-bordure bg-carte active:bg-carte-enfoncee';
+  const fond = discrete ? 'active:bg-carte-enfoncee' : actif ? t.actif : 'border-contour bg-carte active:bg-carte-enfoncee';
   return (
     <Pressable
       accessibilityRole={accessibilityRole}
@@ -610,7 +642,7 @@ export function Encart({
   className?: string;
 }) {
   return (
-    <View className={`flex-row items-center gap-3 rounded-2xl ${compact ? 'p-3' : 'p-4'} ${fond} ${className}`}>
+    <View className={`flex-row items-center gap-3 rounded-[20px] ${compact ? 'p-3' : 'p-4'} ${fond} ${className}`}>
       <Text className={compact ? 'text-2xl' : 'text-3xl'} accessible={false}>
         {emoji}
       </Text>
@@ -647,7 +679,7 @@ export function ChampRecherche({
 }) {
   const c = useCouleurs();
   return (
-    <View className="min-h-12 flex-row items-center gap-2 rounded-xl border border-bordure bg-carte pl-4">
+    <View style={{ boxShadow: c.ombre.carte }} className="min-h-[52px] flex-row items-center gap-2 rounded-2xl border border-contour bg-carte pl-4">
       <Ionicons name="search" size={20} color={c.encre3} />
       <TextInput
         value={valeur}
@@ -681,10 +713,15 @@ export function FondModale({
   /** Posé par-dessus toute la fenêtre (ex. calque qui absorbe un clic fantôme). */
   calque?: ReactNode;
 }) {
+  const c = useCouleurs();
   return (
     <Modal transparent visible animationType="fade" onRequestClose={onFermer} statusBarTranslucent>
       <Pressable className="flex-1 items-center justify-center bg-voile px-6" onPress={onFermer} accessibilityLabel="Fermer">
-        <Pressable className={`w-full max-w-sm rounded-3xl bg-carte p-6 ${className}`} onPress={() => {}} accessibilityViewIsModal>
+        <Pressable
+          style={{ boxShadow: c.ombre.relief }}
+          className={`w-full max-w-sm rounded-[28px] border border-contour bg-carte p-6 ${className}`}
+          onPress={() => {}}
+          accessibilityViewIsModal>
           {children}
         </Pressable>
       </Pressable>

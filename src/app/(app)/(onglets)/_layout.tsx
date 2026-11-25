@@ -27,6 +27,7 @@ export default function LayoutOnglets() {
         headerShown: false,
         tabBarActiveTintColor: c.frigoTexte,
         tabBarInactiveTintColor: c.encre2,
+        // Une seule couleur active pour tous les onglets (couleur signature).
         tabBarStyle: { backgroundColor: c.carte, borderTopColor: c.bordure, minHeight: 72, paddingTop: 6 },
         tabBarLabelStyle: { fontFamily: 'Inter_600SemiBold', fontSize: 12, marginTop: 2 },
         sceneStyle: { backgroundColor: c.fond },
@@ -42,18 +43,16 @@ export default function LayoutOnglets() {
         name="courses"
         options={{
           title: 'Courses',
-          tabBarActiveTintColor: c.coursesTexte,
           tabBarBadge: aAcheter > 0 ? (aAcheter > 99 ? '99+' : aAcheter) : undefined,
           tabBarBadgeStyle: { backgroundColor: c.coursesFort, color: c.blanc, fontFamily: 'Inter_600SemiBold' },
-          tabBarIcon: (p) => <IconeOnglet icone="cart" pastille="bg-courses-pale" {...p} />,
+          tabBarIcon: (p) => <IconeOnglet icone="cart" pastille="bg-frigo-pale" {...p} />,
         }}
       />
       <Tabs.Screen
         name="recettes"
         options={{
           title: 'Recettes',
-          tabBarActiveTintColor: c.orangeTexte,
-          tabBarIcon: (p) => <IconeOnglet icone="restaurant" pastille="bg-orange-pale" {...p} />,
+          tabBarIcon: (p) => <IconeOnglet icone="restaurant" pastille="bg-frigo-pale" {...p} />,
         }}
       />
       <Tabs.Screen

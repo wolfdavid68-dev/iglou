@@ -11,8 +11,10 @@ import { useHorsLigne } from '@/services/donnees-maison';
 import { useCouleurs } from '@/theme';
 
 /**
- * En-tête en dégradé, dans l'esprit de l'accueil : titre blanc, motif
- * décoratif en filigrane et contenu libre en dessous (chiffres, progression…).
+ * En-tête d'écran : voile givré qui se fond dans le fond de l'écran (teinte de
+ * l'écran → fond), grand titre à l'encre, motif en filigrane et contenu libre
+ * en dessous (chiffres, progression…). Le contenu est posé sur un fond clair
+ * en clair et sombre en sombre : utiliser les couleurs du thème, jamais le blanc.
  */
 export function EnTeteDegrade({
   couleurs,
@@ -26,6 +28,7 @@ export function EnTeteDegrade({
   actions,
   children,
 }: {
+  /** Voile du thème (`c.hero`, `c.heroCourses`…), de la teinte vers le fond. */
   couleurs: readonly [string, string, ...string[]];
   titre: string;
   sousTitre?: string;
@@ -45,18 +48,19 @@ export function EnTeteDegrade({
   const insets = useSafeAreaInsets();
   const horsLigne = useHorsLigne();
   const focalise = useIsFocused();
+  const c = useCouleurs();
 
   return (
     <View>
-      {focalise && <StatusBar style="light" />}
+      {focalise && <StatusBar style={c.sombre ? 'light' : 'dark'} />}
       <Degrade
         colors={couleurs}
         start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        end={{ x: 0.35, y: 1 }}
         style={{ paddingTop: insets.top + 8 }}
-        className="overflow-hidden rounded-b-[32px] px-4 pb-5">
-        <View pointerEvents="none" style={{ position: 'absolute', right: -36, top: insets.top - 24 }}>
-          <MaterialCommunityIcons name={motif} size={180} color="rgba(255,255,255,0.1)" />
+        className="overflow-hidden px-4 pb-4">
+        <View pointerEvents="none" style={{ position: 'absolute', right: -40, top: insets.top - 28 }}>
+          <MaterialCommunityIcons name={motif} size={190} color={c.sombre ? 'rgba(255,255,255,0.035)' : 'rgba(14,26,43,0.04)'} />
         </View>
 
         {retour ? (
@@ -101,7 +105,7 @@ function Titre({
   return (
     <View className={className}>
       {surTitre ? (
-        <Texte poids="moyen" ton="aucun" className="text-sm text-white/80" numberOfLines={1}>
+        <Texte poids="moyen" ton="secondaire" className="text-sm" numberOfLines={1}>
           {surTitre}
         </Texte>
       ) : null}
@@ -112,18 +116,18 @@ function Titre({
           accessibilityLabel={libelleTitre ?? titre}
           hitSlop={8}
           className="mt-0.5 flex-row items-center gap-1.5 self-start active:opacity-70">
-          <Texte poids="gras" ton="blanc" className="shrink text-3xl" numberOfLines={1}>
+          <Texte poids="titre-gras" className="shrink text-[34px] leading-[40px]" numberOfLines={1}>
             {titre}
           </Texte>
-          <Ionicons name="chevron-down" size={22} color={c.blanc} />
+          <Ionicons name="chevron-down" size={22} color={c.encre2} />
         </Pressable>
       ) : (
-        <Texte poids="gras" ton="blanc" className="text-3xl" numberOfLines={2} accessibilityRole="header">
+        <Texte poids="titre-gras" className="text-[34px] leading-[40px]" numberOfLines={2} accessibilityRole="header">
           {titre}
         </Texte>
       )}
       {sousTitre ? (
-        <Texte poids="moyen" ton="aucun" className="text-sm text-white/80" numberOfLines={1}>
+        <Texte poids="moyen" ton="secondaire" className="text-sm" numberOfLines={1}>
           {sousTitre}
         </Texte>
       ) : null}
@@ -131,7 +135,7 @@ function Titre({
   );
 }
 
-/** Bouton rond « verre dépoli », lisible sur un dégradé. */
+/** Bouton rond en relief (carte, filet et ombre douce) posé sur le voile de l'en-tête. */
 export function BoutonVerre({ icone, libelle, onPress }: { icone: NomIcone; libelle: string; onPress: () => void }) {
   const c = useCouleurs();
   return (
@@ -140,18 +144,20 @@ export function BoutonVerre({ icone, libelle, onPress }: { icone: NomIcone; libe
       accessibilityLabel={libelle}
       hitSlop={4}
       onPress={onPress}
-      className="size-12 items-center justify-center rounded-full border border-white/25 bg-white/15 active:bg-white/30">
-      <Ionicons name={icone} size={22} color={c.blanc} />
+      style={{ boxShadow: c.ombre.carte }}
+      className="size-12 items-center justify-center rounded-full border border-contour bg-carte active:scale-95 active:bg-carte-enfoncee">
+      <Ionicons name={icone} size={22} color={c.encre} />
     </Pressable>
   );
 }
 
-/** Pastille chiffrée semi-transparente pour le contenu d'un en-tête en dégradé. */
+/** Pastille chiffrée pour le contenu d'un en-tête (nombre de tiroirs, d'aliments…). */
 export function PuceVerre({ icone, texte }: { icone: NomIcone; texte: string }) {
+  const c = useCouleurs();
   return (
-    <View className="flex-row items-center gap-1.5 rounded-full border border-white/25 bg-white/15 px-3 py-1.5">
-      <Ionicons name={icone} size={14} color="rgba(255,255,255,0.9)" />
-      <Texte poids="demi" ton="blanc" className="text-xs">
+    <View className="flex-row items-center gap-1.5 rounded-full border border-contour bg-carte/80 px-3 py-1.5">
+      <Ionicons name={icone} size={14} color={c.encre2} />
+      <Texte poids="demi" ton="secondaire" className="text-xs">
         {texte}
       </Texte>
     </View>
