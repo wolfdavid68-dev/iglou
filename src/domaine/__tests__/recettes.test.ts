@@ -48,6 +48,9 @@ describe('base de recettes', () => {
     expect(healthy.length).toBeGreaterThanOrEqual(260);
     expect(trouverRecette('bowl-quinoa-poulet-avocat')?.healthy).toBe(true);
     expect(trouverRecette('tartiflette')?.healthy).toBe(false);
+    // Petits-déjeuners et desserts healthy aussi, pas seulement des repas.
+    expect(RECETTES.filter((r) => r.healthy && r.categorie === 'petit-dej').length).toBeGreaterThanOrEqual(20);
+    expect(RECETTES.filter((r) => r.healthy && r.categorie === 'dessert').length).toBeGreaterThanOrEqual(20);
   });
 
   it('lit quantités et ingrédients facultatifs', () => {

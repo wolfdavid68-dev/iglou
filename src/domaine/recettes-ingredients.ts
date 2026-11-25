@@ -17,6 +17,7 @@ export const INGREDIENTS = {
   // ---------- Crèmerie ----------
   oeuf: { nom: 'Œufs', cles: ['oeuf'] },
   lait: { nom: 'Lait', cles: ['lait'], sauf: ['coco', 'amande', 'avoine', 'soja', 'riz', 'concentre'] },
+  laitVegetal: { nom: 'Lait végétal', cles: ['lait d amande', 'lait d avoine', 'lait de soja', 'lait de riz', 'boisson vegetale', 'boisson amande', 'boisson avoine', 'boisson soja'] },
   creme: { nom: 'Crème fraîche', cles: ['creme'], sauf: ['glacee', 'dessert', 'coco', 'marron', 'brulee', 'caramel'] },
   beurre: { nom: 'Beurre', cles: ['beurre'], sauf: ['cacahuete'] },
   fromageRape: {
@@ -37,6 +38,7 @@ export const INGREDIENTS = {
   mascarpone: { nom: 'Mascarpone', cles: ['mascarpone'] },
   ricotta: { nom: 'Ricotta', cles: ['ricotta'] },
   tofu: { nom: 'Tofu', cles: ['tofu'] },
+  houmous: { nom: 'Houmous', cles: ['houmous', 'hummus'] },
 
   // ---------- Viandes ----------
   jambon: { nom: 'Jambon', cles: ['jambon'] },
@@ -109,6 +111,7 @@ export const INGREDIENTS = {
   avocat: { nom: 'Avocats', cles: ['avocat'] },
   haricotVert: { nom: 'Haricots verts', cles: ['haricot vert'] },
   petitsPois: { nom: 'Petits pois', cles: ['petit pois'] },
+  edamame: { nom: 'Edamame', cles: ['edamame', 'feve de soja', 'haricot de soja'] },
   courge: { nom: 'Potiron ou courge', cles: ['courge', 'potiron', 'potimarron', 'butternut', 'citrouille'] },
   celeri: { nom: 'Céleri', cles: ['celeri'] },
   navet: { nom: 'Navets', cles: ['navet'] },
@@ -135,6 +138,7 @@ export const INGREDIENTS = {
   banane: { nom: 'Bananes', cles: ['banane'] },
   fraise: { nom: 'Fraises', cles: ['fraise'] },
   fruitsRouges: { nom: 'Fruits rouges', cles: ['fruit rouge', 'framboise', 'myrtille', 'mure', 'cassis', 'groseille'] },
+  figue: { nom: 'Figues', cles: ['figue'] },
   orange: { nom: 'Oranges', cles: ['orange', 'clementine', 'mandarine'] },
   kiwi: { nom: 'Kiwis', cles: ['kiwi'] },
   cerise: { nom: 'Cerises', cles: ['cerise'] },
@@ -174,6 +178,11 @@ export const INGREDIENTS = {
   biscuits: { nom: 'Biscuits', cles: ['biscuit', 'boudoir', 'speculoos', 'petit beurre'], placard: true },
   flocons: { nom: 'Flocons d’avoine', cles: ['flocon', 'avoine'], sauf: ['lait'], placard: true },
   miel: { nom: 'Miel', cles: ['miel'], placard: true },
+  siropErable: { nom: 'Sirop d’érable', cles: ['sirop d erable', 'sirop d agave'], placard: true },
+  graines: { nom: 'Graines (chia, lin, sésame, courge)', cles: ['graine', 'chia', 'sesame', 'lin'], sauf: ['huile', 'pain'], placard: true },
+  beurreCacahuete: { nom: 'Beurre de cacahuète', cles: ['beurre de cacahuete', 'puree de cacahuete', 'puree d amande', 'beurre d amande'], placard: true },
+  tahini: { nom: 'Tahini', cles: ['tahini', 'tahin', 'puree de sesame', 'creme de sesame'], placard: true },
+  dattes: { nom: 'Dattes', cles: ['datte'], placard: true },
   pates: {
     nom: 'Pâtes',
     cles: ['pate', 'spaghetti', 'tagliatelle', 'penne', 'coquillette', 'fusilli', 'macaroni', 'linguine', 'farfalle'],
@@ -188,6 +197,9 @@ export const INGREDIENTS = {
   lentilles: { nom: 'Lentilles', cles: ['lentille'], placard: true },
   poisChiches: { nom: 'Pois chiches', cles: ['pois chiche'], placard: true },
   haricotsRouges: { nom: 'Haricots rouges', cles: ['haricot rouge'], placard: true },
+  haricotsBlancs: { nom: 'Haricots blancs', cles: ['haricot blanc', 'lingot', 'coco blanc', 'flageolet'], placard: true },
+  haricotsNoirs: { nom: 'Haricots noirs', cles: ['haricot noir'], placard: true },
+  boulgour: { nom: 'Boulgour', cles: ['boulgour', 'boulghour', 'epeautre', 'sarrasin', 'orge perle'], placard: true },
   mais: { nom: 'Maïs', cles: ['mais'], placard: true },
   thon: { nom: 'Thon en boîte', cles: ['thon'], placard: true },
   olives: { nom: 'Olives', cles: ['olive'], sauf: ['huile'], placard: true },
