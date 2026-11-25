@@ -1,132 +1,231 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { useMemo, useState, type ReactNode } from 'react';
+import { FlatList, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
 import { EnTeteDegrade } from '@/composants/en-tete-degrade';
-import { Encart, EtatVide, Pastille, Segments, Texte } from '@/composants/ui';
-import { RECETTES_REPAS, estPrete, formaterDuree, suggererRecettes, type Suggestion } from '@/domaine/recettes';
+import { ASSIETTE, CarteRecette, CarteRecetteDuJour } from '@/composants/recette';
+import { Bouton, ChampRecherche, Puce, Texte } from '@/composants/ui';
+import { RECETTES, analyserRecettes, estPrete, recetteDuJour, rechercherRecettes, suggererRecettes, type Categorie, type Suggestion } from '@/domaine/recettes';
 import { useDonnees } from '@/services/donnees-maison';
+import { useFavoris } from '@/services/favoris';
+import { tic } from '@/services/haptique';
 import { useCouleurs } from '@/theme';
 
-type Filtre = 'toutes' | 'pretes' | 'antigaspi' | 'healthy';
+/** Filtre de disponibilité ou de goût ; il se combine avec la catégorie. */
+type Filtre = 'pretes' | 'presque' | 'favoris' | 'rapides' | 'healthy' | 'toutes';
 
-const FILTRES: { valeur: Filtre; libelle: string }[] = [
-  { valeur: 'toutes', libelle: 'Toutes' },
+const FILTRES: { valeur: Filtre; libelle: string; emoji?: string }[] = [
   { valeur: 'pretes', libelle: 'Prêtes' },
-  { valeur: 'antigaspi', libelle: 'Anti-gaspi' },
-  { valeur: 'healthy', libelle: 'Healthy' },
+  { valeur: 'presque', libelle: 'Il manque peu' },
+  { valeur: 'favoris', libelle: 'Favoris', emoji: '❤️' },
+  { valeur: 'rapides', libelle: 'Rapides', emoji: '⏱️' },
+  { valeur: 'healthy', libelle: 'Healthy', emoji: '🥦' },
+  { valeur: 'toutes', libelle: 'Toutes' },
 ];
 
-/** Recettes réalisables avec le contenu du frigo et du congélateur. */
+const CATEGORIES: { valeur: Categorie; libelle: string; emoji: string }[] = [
+  { valeur: 'plat', libelle: 'Plats', emoji: '🍽️' },
+  { valeur: 'salade', libelle: 'Salades', emoji: '🥗' },
+  { valeur: 'soupe', libelle: 'Soupes', emoji: '🍲' },
+  { valeur: 'entree', libelle: 'Entrées', emoji: '🥟' },
+  { valeur: 'accompagnement', libelle: 'Accomp.', emoji: '🥔' },
+  { valeur: 'dessert', libelle: 'Desserts', emoji: '🍰' },
+  { valeur: 'petit-dej', libelle: 'Petit-déj', emoji: '🥐' },
+];
+
+/** « Rapide » : prête en 20 minutes au plus. */
+const MINUTES_RAPIDE = 20;
+const ESPACE = 12;
+
+const VIDES: Partial<Record<Filtre, string>> = {
+  pretes: 'Aucune recette n’a tous ses ingrédients chez toi ici. Regarde celles où il en manque peu !',
+  presque: 'Rien d’approchant avec ce qu’il y a chez toi. Parcours toutes les recettes !',
+  favoris: 'Touche le cœur d’une recette pour la retrouver ici.',
+};
+
+/** Le carnet de recettes : tout le catalogue, les plus faisables avec ce qu'on a d'abord. */
 export default function EcranRecettes() {
   const c = useCouleurs();
+  const { width } = useWindowDimensions();
   const { aliments } = useDonnees();
-  const [filtre, setFiltre] = useState<Filtre>('toutes');
+  const favoris = useFavoris();
+  const [filtre, setFiltre] = useState<Filtre>('pretes');
+  const [categorie, setCategorie] = useState<Categorie | null>(null);
+  const [saisie, setSaisie] = useState('');
 
-  const suggestions = suggererRecettes(aliments, new Date(), RECETTES_REPAS);
-  const visibles = suggestions.filter((s) =>
-    filtre === 'pretes'
-      ? estPrete(s)
-      : filtre === 'antigaspi'
-        ? s.urgents.length > 0
-        : filtre === 'healthy'
-          ? s.recette.healthy
-          : true,
-  );
-  const urgents = new Set(suggestions.flatMap((s) => s.urgents.map((a) => a.nom)));
-  const enStock = aliments.some((a) => a.quantite > 0);
+  const tout = useMemo(() => analyserRecettes(aliments, new Date(), RECETTES), [aliments]);
+  const suggestions = useMemo(() => suggererRecettes(aliments, new Date(), RECETTES), [aliments]);
+  const faisables = useMemo(() => new Set(suggestions.map((s) => s.recette.id)), [suggestions]);
+  const duJour = recetteDuJour(suggestions);
+
+  const garder = (f: Filtre, s: Suggestion): boolean => {
+    const r = s.recette;
+    switch (f) {
+      case 'pretes':
+        return estPrete(s);
+      case 'presque':
+        return faisables.has(r.id) && !estPrete(s);
+      case 'favoris':
+        return favoris.has(r.id);
+      case 'rapides':
+        return r.minutes <= MINUTES_RAPIDE;
+      case 'healthy':
+        return !!r.healthy;
+      case 'toutes':
+        return true;
+    }
+  };
+  const dansCategorie = (cat: Categorie | null, s: Suggestion) => cat === null || s.recette.categorie === cat;
+
+  const recherche = saisie.trim();
+  // La recherche porte sur tout le carnet ; catégorie et filtre reviennent quand on l'efface.
+  const visibles = recherche ? rechercherRecettes(tout, recherche) : tout.filter((s) => dansCategorie(categorie, s) && garder(filtre, s));
+  const largeur = Math.floor((width - 32 - ESPACE) / 2);
+  const nomCategorie = CATEGORIES.find((x) => x.valeur === categorie)?.libelle.toLowerCase();
+
+  const choisirCategorie = (cat: Categorie | null) => {
+    tic();
+    // Toucher la catégorie déjà choisie la retire.
+    setCategorie((avant) => (avant === cat ? null : cat));
+  };
 
   return (
     <View className="flex-1 bg-fond">
-      <EnTeteDegrade couleurs={c.heroRecettes} motif="chef-hat" titre="Recettes" sousTitre="Avec ce qu’il y a chez toi" retour={false} />
-      {!enStock ? (
-        <EtatVide emoji="🍳" titre="Rien à cuisiner pour l’instant" texte="Ajoute des aliments dans ton frigo ou ton congélateur : les idées de recettes apparaîtront ici." />
-      ) : suggestions.length === 0 ? (
-        <EtatVide emoji="🤔" titre="Pas d’idée pour le moment" texte="Il manque un peu trop d’ingrédients pour proposer une recette. Ajoute quelques produits frais !" />
-      ) : (
-        <FlatList
-          data={visibles}
-          keyExtractor={(s) => s.recette.id}
-          contentContainerClassName="gap-3 px-4 pb-8 pt-4"
-          ListHeaderComponent={
-            <View className="gap-3 pb-1">
-              {urgents.size > 0 ? (
-                <Encart
-                  emoji="♻️"
-                  titre="Anti-gaspi"
-                  lignes={3}
-                  texte={`Les recettes qui utilisent ${[...urgents].slice(0, 3).join(', ')}${urgents.size > 3 ? '…' : ''} passent en premier.`}
-                />
-              ) : null}
-              <Segments options={FILTRES} valeur={filtre} onChange={setFiltre} />
-              <Texte ton="secondaire" className="text-sm" accessibilityLiveRegion="polite">
-                {visibles.length} recette{visibles.length > 1 ? 's' : ''}
-              </Texte>
-            </View>
-          }
-          ListEmptyComponent={
-            <Texte ton="secondaire" className="py-8 text-center text-base">
-              {filtre === 'pretes'
-                ? 'Aucune recette avec tous les ingrédients. Regarde celles où il en manque peu !'
-                : filtre === 'healthy'
-                  ? 'Pas encore de recette healthy avec ce que tu as. Ajoute des légumes frais !'
-                  : 'Rien ne périme bientôt : pas d’urgence anti-gaspi.'}
+      <EnTeteDegrade
+        couleurs={c.heroRecettes}
+        motif="chef-hat"
+        titre="Recettes"
+        sousTitre={`${RECETTES.length} recettes, ${tout.filter(estPrete).length} prêtes avec ce que tu as`}
+        retour={false}>
+        <ChampRecherche valeur={saisie} onChange={setSaisie} placeholder="Gratin, poulet, crêpes…" libelle="Chercher une recette ou un ingrédient" />
+      </EnTeteDegrade>
+
+      <FlatList
+        key={largeur}
+        data={visibles}
+        keyExtractor={(s) => s.recette.id}
+        numColumns={2}
+        columnWrapperStyle={{ gap: ESPACE }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        contentContainerClassName="gap-5 px-4 pb-12 pt-1"
+        ListHeaderComponent={
+          recherche ? (
+            <Texte ton="secondaire" className="px-1 text-sm" accessibilityLiveRegion="polite">
+              {visibles.length ? `${visibles.length} recette${visibles.length > 1 ? 's' : ''} pour « ${recherche} »` : ''}
             </Texte>
-          }
-          renderItem={({ item }) => <CarteRecette suggestion={item} />}
-        />
-      )}
+          ) : (
+            <View className="gap-5">
+              {/* La recette du jour, en tête du carnet. */}
+              {duJour ? <CarteRecetteDuJour suggestion={duJour} /> : null}
+
+              {/* Catégories : des assiettes rondes, comme sur les cartes. */}
+              <View className="gap-2">
+                <Texte poids="titre" className="px-1 text-xl" accessibilityRole="header">
+                  Catégories
+                </Texte>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-4" contentContainerClassName="gap-1 px-3" accessibilityRole="radiogroup">
+                  <TuileCategorie
+                    libelle="Tout"
+                    nombre={tout.filter((s) => garder(filtre, s)).length}
+                    actif={categorie === null}
+                    onPress={() => choisirCategorie(null)}
+                    contenu={<Ionicons name="grid-outline" size={26} color={categorie === null ? c.frigoTexte : c.encre2} />}
+                    fond="bg-carte-enfoncee"
+                  />
+                  {CATEGORIES.map((cat) => (
+                    <TuileCategorie
+                      key={cat.valeur}
+                      libelle={cat.libelle}
+                      nombre={tout.filter((s) => dansCategorie(cat.valeur, s) && garder(filtre, s)).length}
+                      actif={categorie === cat.valeur}
+                      onPress={() => choisirCategorie(cat.valeur)}
+                      contenu={
+                        <Text className="text-[30px] leading-[38px]" accessible={false}>
+                          {cat.emoji}
+                        </Text>
+                      }
+                      fond={ASSIETTE[cat.valeur]}
+                    />
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* Filtres : une rangée de puces, avec le nombre de recettes de chacun dans la catégorie choisie. */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-4" contentContainerClassName="gap-2 px-4" accessibilityRole="radiogroup">
+                {FILTRES.map((f) => (
+                  <Puce
+                    key={f.valeur}
+                    compacte
+                    emoji={f.emoji}
+                    libelle={f.libelle}
+                    nombre={f.valeur === 'toutes' ? undefined : tout.filter((s) => dansCategorie(categorie, s) && garder(f.valeur, s)).length}
+                    actif={filtre === f.valeur}
+                    accessibilityRole="radio"
+                    onPress={() => {
+                      if (filtre !== f.valeur) tic();
+                      setFiltre(f.valeur);
+                    }}
+                  />
+                ))}
+              </ScrollView>
+            </View>
+          )
+        }
+        ListEmptyComponent={
+          <View className="items-center gap-4 px-6 py-12">
+            <Texte poids="titre" className="text-center text-lg">
+              {recherche ? 'Aucune recette trouvée' : filtre === 'favoris' ? 'Pas encore de favori' : 'Rien pour l’instant'}
+            </Texte>
+            <Texte ton="secondaire" className="text-center text-base">
+              {recherche
+                ? `Rien ne correspond à « ${recherche} ». Essaie un ingrédient : « poulet », « courgette »…`
+                : `${nomCategorie ? `Côté ${nomCategorie} : ` : ''}${VIDES[filtre] ?? 'Aucune recette dans ce filtre.'}`}
+            </Texte>
+            {!recherche && filtre !== 'toutes' ? <Bouton titre="Voir toutes les recettes" variante="secondaire" onPress={() => setFiltre('toutes')} /> : null}
+          </View>
+        }
+        renderItem={({ item }) => <CarteRecette suggestion={item} largeur={largeur} />}
+      />
     </View>
   );
 }
 
-function CarteRecette({ suggestion: s }: { suggestion: Suggestion }) {
-  const router = useRouter();
+/** Tuile de catégorie : assiette ronde teintée, nom et nombre de recettes ; anneau vert quand elle est choisie. */
+function TuileCategorie({
+  libelle,
+  nombre,
+  actif,
+  onPress,
+  contenu,
+  fond,
+}: {
+  libelle: string;
+  nombre: number;
+  actif: boolean;
+  onPress: () => void;
+  contenu: ReactNode;
+  fond: string;
+}) {
   const c = useCouleurs();
-  const prete = estPrete(s);
-  const manque = s.manquants.map((i) => i.nom.toLowerCase()).join(', ');
-  const etat = prete ? 'Tout est là' : `Il manque : ${manque}`;
-
   return (
     <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${s.recette.nom}, ${s.recette.minutes} minutes${s.recette.healthy ? ', healthy' : ''}. ${etat}`}
-      onPress={() => router.push({ pathname: '/recette/[id]', params: { id: s.recette.id } })}
-      className="flex-row items-center gap-3 rounded-2xl border border-bordure bg-carte p-4 active:bg-carte-enfoncee">
-      <View className={`size-16 items-center justify-center rounded-2xl ${prete ? 'bg-vert-pale' : 'bg-carte-enfoncee'}`}>
-        <Text className="text-4xl" accessible={false}>
-          {s.recette.emoji}
-        </Text>
+      onPress={onPress}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: actif }}
+      accessibilityLabel={`${libelle}, ${nombre} recette${nombre > 1 ? 's' : ''}`}
+      className="w-[76px] items-center gap-1.5 py-1 active:scale-95">
+      <View
+        style={actif ? undefined : { boxShadow: c.ombre.carte }}
+        className={`size-16 items-center justify-center rounded-full border-2 ${actif ? 'border-frigo-fort' : 'border-transparent'} ${fond}`}>
+        {contenu}
       </View>
-      <View className="flex-1 gap-1">
-        <Texte poids="demi" className="text-base" numberOfLines={2}>
-          {s.recette.nom}
-        </Texte>
-        <View className="flex-row items-center gap-1">
-          <Ionicons name="time-outline" size={14} color={c.encre3} />
-          <Texte ton="discret" className="text-xs">
-            {formaterDuree(s.recette.minutes)} · {s.recette.portions} pers.
-          </Texte>
-          {s.recette.healthy ? (
-            <Texte ton="vert" poids="moyen" className="text-xs">
-              · 🌿 Healthy
-            </Texte>
-          ) : null}
-        </View>
-        <View className="flex-row items-center gap-1">
-          <Ionicons name={prete ? 'checkmark-circle' : 'cart-outline'} size={14} color={prete ? c.vertTexte : c.coursesTexte} />
-          <Texte ton={prete ? 'vert' : 'courses'} poids="moyen" className="flex-1 text-xs" numberOfLines={1}>
-            {prete ? `Tout est là · ${s.disponibles}/${s.requis} ingrédients` : `Il manque : ${manque}`}
-          </Texte>
-        </View>
-        {s.urgents.length > 0 ? (
-          <View className="flex-row">
-            <Pastille fond="bg-orange-pale" ton="orange" texte={`♻️ Utilise ${s.urgents.map((a) => a.nom).join(', ')}`} />
-          </View>
-        ) : null}
-      </View>
-      <Ionicons name="chevron-forward" size={20} color={c.encre3} />
+      <Texte poids={actif ? 'demi' : 'moyen'} ton={actif ? 'frigo' : 'encre'} className="text-[13px]" numberOfLines={1}>
+        {libelle}
+      </Texte>
+      <Texte ton="discret" className="-mt-1 text-[11px]" style={{ fontVariant: ['tabular-nums'] }}>
+        {nombre}
+      </Texte>
     </Pressable>
   );
 }

@@ -1,18 +1,21 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
-import { EcranFormulaire } from '@/composants/formulaire';
-import { Bouton, Champ, Compteur, EnTete, Libelle, Segments, Texte } from '@/composants/ui';
+import { EcranFormulaire, GroupeChamps } from '@/composants/formulaire';
+import { Bouton, Champ, Compteur, EnTete, Texte } from '@/composants/ui';
 import type { TypeAppareil } from '@/domaine/types';
 import { confirmer } from '@/services/dialogue';
 import { useDonnees } from '@/services/donnees-maison';
+import { tic } from '@/services/haptique';
 import { creerAppareil, modifierAppareil, supprimerAppareil } from '@/services/inventaire';
 import { lancer } from '@/services/retours';
+import { classesAppareil, couleurTexteAppareil, useCouleurs } from '@/theme';
 
-const TYPES: { valeur: TypeAppareil; libelle: string }[] = [
-  { valeur: 'frigo', libelle: 'Frigo' },
-  { valeur: 'congelateur', libelle: 'Congélateur' },
+const TYPES: { valeur: TypeAppareil; libelle: string; texte: string; icone: 'fridge-outline' | 'snowflake' }[] = [
+  { valeur: 'frigo', libelle: 'Frigo', texte: 'Produits frais', icone: 'fridge-outline' },
+  { valeur: 'congelateur', libelle: 'Congélateur', texte: 'Surgelés', icone: 'snowflake' },
 ];
 
 export default function EditerAppareil() {
@@ -74,38 +77,83 @@ export default function EditerAppareil() {
 
   return (
     <EcranFormulaire entete={<EnTete titre={existant ? 'Modifier l’appareil' : 'Nouvel appareil'} />}>
-      <Segments libelle="Type" options={TYPES} valeur={type} onChange={setType} teinte={type === 'congelateur' ? 'congelateur' : 'frigo'} />
-      <Champ
-        libelle="Nom"
-        placeholder={type === 'congelateur' ? 'Ex. Congélateur garage' : 'Ex. Frigo cuisine'}
-        value={nom}
-        onChangeText={(t) => {
-          setNom(t);
-          setErreur(null);
-        }}
-        erreur={erreur}
-        maxLength={40}
-        autoFocus={!existant}
-        returnKeyType="done"
-        onSubmitEditing={valider}
-      />
-      {!existant && (
-        <View className="gap-1.5">
-          <Libelle>Nombre de tiroirs</Libelle>
-          <Compteur libelle="nombre de tiroirs" valeur={nbTiroirs} onChange={setNbTiroirs} min={1} max={20} entier />
-          <Texte ton="discret" className="text-sm">
-            De 1 à 20. Tu pourras les renommer, en ajouter ou en retirer ensuite.
-          </Texte>
+      <GroupeChamps titre="Type d’appareil">
+        {/* Choix exclusif illustré : la tuile choisie prend la couleur de l'appareil. */}
+        <View className="flex-row gap-3" accessibilityRole="radiogroup">
+          {TYPES.map((t) => (
+            <TuileType key={t.valeur} type={t} actif={type === t.valeur} onPress={() => setType(t.valeur)} />
+          ))}
         </View>
+      </GroupeChamps>
+      <GroupeChamps titre="Nom">
+        <Champ
+          accessibilityLabel="Nom"
+          placeholder={type === 'congelateur' ? 'Ex. Congélateur garage' : 'Ex. Frigo cuisine'}
+          value={nom}
+          onChangeText={(t) => {
+            setNom(t);
+            setErreur(null);
+          }}
+          erreur={erreur}
+          maxLength={40}
+          autoFocus={!existant}
+          returnKeyType="done"
+          onSubmitEditing={valider}
+        />
+      </GroupeChamps>
+      {!existant && (
+        <GroupeChamps titre="Tiroirs" aide="De 1 à 20. Tu pourras les renommer, en ajouter ou en retirer ensuite.">
+          <Compteur libelle="nombre de tiroirs" valeur={nbTiroirs} onChange={setNbTiroirs} min={1} max={20} entier />
+        </GroupeChamps>
       )}
       <Bouton
         titre={existant ? 'Enregistrer' : 'Créer l’appareil'}
+        icone={existant ? 'checkmark' : 'add'}
         onPress={valider}
         chargement={creeId != null}
         fond={type === 'congelateur' ? 'bg-congelateur-fort' : undefined}
-        className="mt-2"
+        className="mt-4"
       />
       {existant && <Bouton titre="Supprimer l’appareil" icone="trash-outline" variante="danger" onPress={supprimer} />}
     </EcranFormulaire>
+  );
+}
+
+function TuileType({
+  type: t,
+  actif,
+  onPress,
+}: {
+  type: (typeof TYPES)[number];
+  actif: boolean;
+  onPress: () => void;
+}) {
+  const c = useCouleurs();
+  const classes = classesAppareil[t.valeur];
+  return (
+    <Pressable
+      accessibilityRole="radio"
+      accessibilityState={{ checked: actif }}
+      accessibilityLabel={t.libelle}
+      onPress={() => {
+        if (!actif) tic();
+        onPress();
+      }}
+      style={actif ? { boxShadow: c.ombre.carte } : undefined}
+      className={`min-h-[120px] flex-1 justify-between gap-3 rounded-[20px] border-2 p-4 active:scale-[0.98] ${
+        actif ? `${classes.bordure} bg-carte` : 'border-transparent bg-carte-enfoncee'
+      }`}>
+      <View className={`size-12 items-center justify-center rounded-2xl ${actif ? classes.pale : 'bg-carte'}`}>
+        <MaterialCommunityIcons name={t.icone} size={26} color={actif ? couleurTexteAppareil(c, t.valeur) : c.encre2} />
+      </View>
+      <View>
+        <Texte poids="titre" className="text-[17px]">
+          {t.libelle}
+        </Texte>
+        <Texte ton="secondaire" className="text-sm">
+          {t.texte}
+        </Texte>
+      </View>
+    </Pressable>
   );
 }

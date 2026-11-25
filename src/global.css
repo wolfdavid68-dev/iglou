@@ -2,86 +2,92 @@
 @import 'uniwind';
 
 /*
- * Palette de l'application. Les mêmes valeurs existent côté JS dans
- * src/theme/index.ts (icônes, barre d'onglets, dégradés) : garder les deux alignées.
+ * Palette « électroménager haut de gamme » : neutres porcelaine froids, encre
+ * bleu nuit, une seule couleur signature (vert sapin, bg-frigo-fort) pour les
+ * actions, le bleu glacier réservé au congélateur. Les mêmes valeurs existent
+ * côté JS dans src/theme/index.ts (icônes, barre d'onglets, dégradés) : garder
+ * les deux alignées.
  */
 @layer theme {
   :root {
     @variant light {
-      --color-fond: #f7f9fb;
+      --color-fond: #f3f5f8;
       --color-carte: #ffffff;
-      --color-carte-enfoncee: #f1f5f9;
-      --color-bordure: #e2e8f0;
-      --color-encre: #0f172a;
-      --color-encre-2: #475569;
-      --color-encre-3: #64748b;
-      --color-bac: #f8fafc;
-      --color-frigo-pale: #ccfbf1;
-      --color-congelateur-pale: #dbeafe;
-      --color-courses-pale: #ffedd5;
-      --color-rouge-pale: #fee2e2;
-      --color-orange-pale: #fef3c7;
-      --color-vert-pale: #dcfce7;
-      --color-voile: rgba(15, 23, 42, 0.4);
+      --color-carte-enfoncee: #eceff4;
+      --color-bordure: #e3e7ee;
+      /* Filet très fin autour des cartes (avec l'ombre douce en clair). */
+      --color-contour: rgba(14, 26, 43, 0.07);
+      --color-encre: #0e1a2b;
+      --color-encre-2: #4a5568;
+      --color-encre-3: #697386;
+      --color-bac: #f7f9fb;
+      --color-frigo-pale: #dff2ee;
+      --color-congelateur-pale: #e2ebfb;
+      --color-courses-pale: #fbebdd;
+      --color-rouge-pale: #fbe4e2;
+      --color-orange-pale: #fbf0d9;
+      --color-vert-pale: #def3e5;
+      --color-voile: rgba(14, 26, 43, 0.45);
       /* Couleurs de texte (≥ 4,5:1 sur carte et fond) ; les teintes vives restent pour fonds et icônes. */
-      --color-frigo-texte: #0f766e;
-      --color-congelateur-texte: #1d4ed8;
-      --color-courses-texte: #c2410c;
-      --color-orange-texte: #b45309;
-      --color-vert-texte: #15803d;
-      --color-rouge-texte: #b91c1c;
+      --color-frigo-texte: #0a6b60;
+      --color-congelateur-texte: #2150c4;
+      --color-courses-texte: #b4500f;
+      --color-orange-texte: #a35f00;
+      --color-vert-texte: #1b7a43;
+      --color-rouge-texte: #b42f25;
       /* Accent posé sur bg-encre (bandeau ANNULER), qui s'inverse avec le thème. */
-      --color-courses-inverse: #fb923c;
+      --color-courses-inverse: #f6a15c;
       /* Intérieur des appareils : vitre des tiroirs, façade, poignées. */
       --color-vitre: rgba(255, 255, 255, 0.62);
       --color-vitre-bord: rgba(255, 255, 255, 0.95);
       --color-facade: #ffffff;
-      --color-poignee: #cbd5e1;
+      --color-poignee: #c9d1dc;
     }
 
     @variant dark {
-      --color-fond: #0b1220;
-      --color-carte: #151e2e;
-      --color-carte-enfoncee: #1e293b;
-      --color-bordure: #263247;
-      --color-encre: #f1f5f9;
-      --color-encre-2: #94a3b8;
-      --color-encre-3: #8090a6;
-      --color-bac: #111a29;
-      --color-frigo-pale: #0f3b37;
-      --color-congelateur-pale: #172a4a;
-      --color-courses-pale: #3d2414;
-      --color-rouge-pale: #3f1d1d;
-      --color-orange-pale: #3a2e12;
-      --color-vert-pale: #14331f;
-      --color-voile: rgba(0, 0, 0, 0.6);
-      --color-frigo-texte: #2dd4bf;
-      --color-congelateur-texte: #60a5fa;
-      --color-courses-texte: #fb923c;
-      --color-orange-texte: #fbbf24;
-      --color-vert-texte: #4ade80;
-      --color-rouge-texte: #f87171;
-      --color-courses-inverse: #c2410c;
+      --color-fond: #0a0f17;
+      --color-carte: #131a25;
+      --color-carte-enfoncee: #1b2431;
+      --color-bordure: #232e3d;
+      --color-contour: rgba(255, 255, 255, 0.07);
+      --color-encre: #eef2f7;
+      --color-encre-2: #9aa6b6;
+      --color-encre-3: #8592a4;
+      --color-bac: #0f151f;
+      --color-frigo-pale: #0f2b28;
+      --color-congelateur-pale: #15233f;
+      --color-courses-pale: #33210f;
+      --color-rouge-pale: #3a1b1a;
+      --color-orange-pale: #33280f;
+      --color-vert-pale: #12301f;
+      --color-voile: rgba(0, 0, 0, 0.62);
+      --color-frigo-texte: #4fd1bd;
+      --color-congelateur-texte: #7aa7ff;
+      --color-courses-texte: #f6a15c;
+      --color-orange-texte: #f3c04f;
+      --color-vert-texte: #5fd38d;
+      --color-rouge-texte: #f58a80;
+      --color-courses-inverse: #b4500f;
       --color-vitre: rgba(255, 255, 255, 0.05);
       --color-vitre-bord: rgba(255, 255, 255, 0.12);
-      --color-facade: #1b2638;
-      --color-poignee: #475569;
+      --color-facade: #182131;
+      --color-poignee: #445166;
     }
   }
 }
 
 @theme {
-  --color-frigo: #14b8a6;
-  --color-congelateur: #3b82f6;
-  --color-courses: #f97316;
-  --color-vert: #22c55e;
-  --color-orange: #f59e0b;
-  --color-rouge: #ef4444;
-  /* Fonds sous texte blanc (≥ 5:1), dans les deux thèmes. */
-  --color-frigo-fort: #0f766e;
-  --color-courses-fort: #c2410c;
-  --color-congelateur-fort: #1d4ed8;
-  --color-rouge-fort: #dc2626;
+  --color-frigo: #12a594;
+  --color-congelateur: #4a7bea;
+  --color-courses: #ea7a2c;
+  --color-vert: #2fb36a;
+  --color-orange: #e9a21b;
+  --color-rouge: #e5483d;
+  /* Fonds sous texte blanc (≥ 5:1), dans les deux thèmes. bg-frigo-fort = couleur signature. */
+  --color-frigo-fort: #0a6b60;
+  --color-courses-fort: #b4500f;
+  --color-congelateur-fort: #2150c4;
+  --color-rouge-fort: #c8352a;
   /* Post-it collé sur la porte : même jaune en clair et en sombre. */
   --color-postit: #fde68a;
   --color-postit-encre: #713f12;
@@ -91,6 +97,9 @@
   --font-inter-moyen: 'Inter_500Medium';
   --font-inter-demi: 'Inter_600SemiBold';
   --font-inter-gras: 'Inter_700Bold';
+  /* Titres et grands chiffres : Bricolage Grotesque. */
+  --font-titre: 'BricolageGrotesque_600SemiBold';
+  --font-titre-gras: 'BricolageGrotesque_700Bold';
   /* Écriture manuscrite des post-it. */
   --font-manuscrit: 'Caveat_700Bold';
 }

@@ -1,4 +1,18 @@
-import { HEALTHY_EXISTANTES, RECETTES, RECETTES_REPAS, correspond, manquantsAAjouter, mots, suggererRecettes, trouverRecette } from '../recettes';
+import {
+  HEALTHY_EXISTANTES,
+  RECETTES,
+  RECETTES_REPAS,
+  adapterQuantite,
+  analyserRecettes,
+  correspond,
+  estPrete,
+  manquantsAAjouter,
+  mots,
+  recetteDuJour,
+  rechercherRecettes,
+  suggererRecettes,
+  trouverRecette,
+} from '../recettes';
 import { INGREDIENTS } from '../recettes-ingredients';
 import { aliment, libre } from './fabriques';
 
@@ -34,6 +48,9 @@ describe('base de recettes', () => {
     expect(healthy.length).toBeGreaterThanOrEqual(260);
     expect(trouverRecette('bowl-quinoa-poulet-avocat')?.healthy).toBe(true);
     expect(trouverRecette('tartiflette')?.healthy).toBe(false);
+    // Petits-déjeuners et desserts healthy aussi, pas seulement des repas.
+    expect(RECETTES.filter((r) => r.healthy && r.categorie === 'petit-dej').length).toBeGreaterThanOrEqual(20);
+    expect(RECETTES.filter((r) => r.healthy && r.categorie === 'dessert').length).toBeGreaterThanOrEqual(20);
   });
 
   it('lit quantités et ingrédients facultatifs', () => {
@@ -161,5 +178,53 @@ describe('manquantsAAjouter', () => {
     // Le lait épuisé est déjà dans les courses ; le beurre y est en article libre.
     expect(manquantsAAjouter(painPerdu, stock, [libre({ nom: 'Beurre' })])).toEqual([]);
     expect(manquantsAAjouter(painPerdu, stock, []).map((i) => i.cle)).toEqual(['beurre']);
+  });
+});
+
+describe('catalogue', () => {
+  const stock = [aliment({ id: 'o', nom: 'Œufs', quantite: 6 }), aliment({ id: 'l', nom: 'Lait', quantite: 1 })];
+
+  it('analyse toutes les recettes, les plus faisables d’abord', () => {
+    const tout = analyserRecettes(stock, AUJOURDHUI);
+    expect(tout).toHaveLength(RECETTES.length);
+    for (let i = 1; i < tout.length; i++) expect(tout[i].manquants.length).toBeGreaterThanOrEqual(tout[i - 1].manquants.length);
+  });
+
+  it('cherche par début de mot, dans le nom puis dans les ingrédients', () => {
+    const tout = analyserRecettes([], AUJOURDHUI);
+    const crepes = rechercherRecettes(tout, 'crep');
+    expect(crepes[0].recette.nom.toLowerCase()).toContain('crêpe');
+    expect(rechercherRecettes(tout, 'poul curry').every((s) => /poulet/i.test(s.recette.nom + s.recette.ingredients.map((i) => i.nom).join(' ')))).toBe(true);
+    expect(rechercherRecettes(tout, '   ')).toHaveLength(tout.length);
+    expect(rechercherRecettes(tout, 'zzzzz')).toHaveLength(0);
+  });
+
+  it('choisit une recette du jour stable sur la journée, prête si possible', () => {
+    const s = suggererRecettes(stock, AUJOURDHUI);
+    const matin = recetteDuJour(s, new Date(2026, 9, 7, 8));
+    const soir = recetteDuJour(s, new Date(2026, 9, 7, 21));
+    expect(matin?.recette.id).toBe(soir?.recette.id);
+    if (s.some(estPrete)) expect(matin && estPrete(matin)).toBe(true);
+    expect(recetteDuJour([], AUJOURDHUI)).toBeNull();
+  });
+});
+
+describe('nombre de personnes', () => {
+  it('recalcule le nombre de tête et accorde l’unité', () => {
+    expect(adapterQuantite('250 g', 4, 2)).toBe('125 g');
+    expect(adapterQuantite('2', 4, 2)).toBe('1');
+    expect(adapterQuantite('2', 4, 6)).toBe('3');
+    expect(adapterQuantite('1 gousse', 2, 4)).toBe('2 gousses');
+    expect(adapterQuantite('2 gousses', 4, 2)).toBe('1 gousse');
+    expect(adapterQuantite('1/2 bouquet', 4, 8)).toBe('1 bouquet');
+    expect(adapterQuantite('1 boîte de 400 g', 2, 4)).toBe('2 boîtes de 400 g');
+    expect(adapterQuantite('30 cl', 4, 6)).toBe('45 cl');
+    expect(adapterQuantite('1', 4, 2)).toBe('1/2');
+  });
+
+  it('laisse tel quel ce qui n’a pas de nombre ou ne change pas', () => {
+    expect(adapterQuantite('quelques brins', 4, 2)).toBe('quelques brins');
+    expect(adapterQuantite(null, 4, 2)).toBeNull();
+    expect(adapterQuantite('250 g', 4, 4)).toBe('250 g');
   });
 });

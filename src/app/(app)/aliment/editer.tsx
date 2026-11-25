@@ -1,10 +1,12 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { texteStock } from '@/composants/aliment';
-import { EcranFormulaire } from '@/composants/formulaire';
-import { Bouton, Carte, Champ, Compteur, EnTete, EtatVide, Libelle, Puce, Segments, Texte } from '@/composants/ui';
+import { IconeAppareil } from '@/composants/appareil';
+import { EcranFormulaire, GroupeChamps } from '@/composants/formulaire';
+import { Bouton, Champ, Compteur, EnTete, EtatVide, Libelle, Puce, Segments, Texte } from '@/composants/ui';
 import { formaterDateCourte, lireDateSaisie, versDateISO } from '@/domaine/dates';
 import { emojiPourNom } from '@/domaine/emoji';
 import { suggestionsNoms, tiroirParDefaut, trouverDoublon } from '@/domaine/inventaire';
@@ -14,9 +16,11 @@ import { UNITES, type Aliment, type CourseLibre, type Tiroir, type Unite } from 
 import { choisirTiroir } from '@/services/actions-aliment';
 import { confirmer, demander } from '@/services/dialogue';
 import { useDonnees } from '@/services/donnees-maison';
+import { tic } from '@/services/haptique';
 import { creerAliment, modifierAliment, supprimerLibre, type Auteur } from '@/services/inventaire';
 import { afficherMessage, lancer } from '@/services/retours';
 import { useMoi } from '@/services/session';
+import { useCouleurs } from '@/theme';
 
 const OPTIONS_UNITES = UNITES.map((u) => ({ valeur: u, libelle: u === 'pièce' ? 'pièces' : u === 'portion' ? 'portions' : u }));
 
@@ -76,6 +80,7 @@ function allerAuSuivant(router: ReturnType<typeof useRouter>, file: FileLibres) 
 
 function Formulaire({ existant, tiroirInitial, libre, file }: { existant?: Aliment; tiroirInitial: Tiroir; libre?: CourseLibre; file?: FileLibres }) {
   const router = useRouter();
+  const c = useCouleurs();
   const { maisonId, appareils, tiroirs, aliments } = useDonnees();
   const moi = useMoi();
   const auteur: Auteur = { uid: moi.uid, prenom: moi.prenom };
@@ -187,9 +192,12 @@ function Formulaire({ existant, tiroirInitial, libre, file }: { existant?: Alime
           sousTitre={file && file.total > 1 ? `Article ${file.position} sur ${file.total} de tes courses` : libre ? 'Article de tes courses' : undefined}
         />
       }>
+      {/* L'aliment : son emoji se met à jour pendant la frappe. */}
       <View className="flex-row items-start gap-3">
-        <View className="size-14 items-center justify-center rounded-2xl bg-carte-enfoncee">
-          <Text className="text-3xl">{emojiPourNom(nom)}</Text>
+        <View style={{ boxShadow: c.ombre.carte }} className="mt-[26px] size-[52px] items-center justify-center rounded-2xl border border-contour bg-carte">
+          <Text className="text-[28px] leading-9" accessible={false}>
+            {emojiPourNom(nom)}
+          </Text>
         </View>
         <View className="flex-1">
           <Champ
@@ -220,6 +228,7 @@ function Formulaire({ existant, tiroirInitial, libre, file }: { existant?: Alime
               libelle={s}
               accessibilityLabel={`Suggestion : ${s}`}
               onPress={() => {
+                tic();
                 setNom(s);
                 setFocusNom(false);
               }}
@@ -229,100 +238,114 @@ function Formulaire({ existant, tiroirInitial, libre, file }: { existant?: Alime
       )}
 
       {doublon && (
-        <Carte className="gap-2 border-orange bg-orange-pale p-4">
-          <Texte poids="demi" className="text-base">
-            Déjà dans ce tiroir : {doublon.nom} ({texteStock(doublon)})
-          </Texte>
+        <View className="gap-3 rounded-[20px] border border-orange bg-orange-pale p-4">
+          <View className="flex-row items-center gap-3">
+            <Ionicons name="copy-outline" size={20} color={c.orangeTexte} />
+            <Texte poids="demi" className="flex-1 text-base">
+              Déjà dans ce tiroir : {doublon.nom} ({texteStock(doublon)})
+            </Texte>
+          </View>
           <Bouton titre={`Ajouter à l’existant (+${stock.quantite})`} icone="add-circle-outline" onPress={() => ajouterAExistant(doublon)} />
-        </Carte>
+        </View>
       )}
 
-      <View className="gap-1.5">
-        <Libelle>Emplacement</Libelle>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Emplacement : ${appareil?.nom ?? ''}, ${tiroir.nom}. Changer`}
-          onPress={changerTiroir}
-          className="min-h-12 flex-row items-center rounded-xl border border-bordure bg-carte px-4 py-3 active:bg-carte-enfoncee">
-          <Texte className="flex-1 text-base" numberOfLines={1}>
-            {appareil?.nom ?? '?'} › {tiroir.nom}
-          </Texte>
-          <Texte poids="demi" ton="frigo" className="text-sm">
-            Changer
-          </Texte>
-        </Pressable>
-      </View>
-
-      <Segments libelle="Unité" options={OPTIONS_UNITES} valeur={unite} onChange={setUnite} teinte={appareil?.type ?? 'frigo'} />
-
-      <View className="gap-1.5">
-        <Libelle>Quantité</Libelle>
-        <Compteur libelle="quantité" valeur={stock.quantite} onChange={changerQuantite} pas={pas} suffixe={suffixeUnite(unite)} />
-      </View>
-
-      {existant ? (
+      <GroupeChamps titre="Rangement">
         <View className="gap-1.5">
-          <Libelle>Stock plein</Libelle>
-          <Compteur
-            libelle="stock plein"
-            valeur={stock.quantiteMax}
-            onChange={changerMaximum}
-            min={pas}
-            minSaisie={0.001}
-            pas={pas}
-            suffixe={suffixeUnite(unite)}
-          />
-          <Texte ton="discret" className="text-sm">
-            Ce qui manque pour revenir au stock plein part dans la liste de courses.
-          </Texte>
+          <Libelle>Emplacement</Libelle>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Emplacement : ${appareil?.nom ?? ''}, ${tiroir.nom}. Changer`}
+            onPress={changerTiroir}
+            style={{ boxShadow: c.ombre.carte }}
+            className="min-h-[60px] flex-row items-center gap-3 rounded-2xl border border-contour bg-carte py-2 pl-2.5 pr-4 active:bg-carte-enfoncee">
+            <IconeAppareil type={appareil?.type ?? 'frigo'} taille="petite" />
+            <View className="flex-1">
+              <Texte poids="moyen" className="text-base" numberOfLines={1}>
+                {tiroir.nom}
+              </Texte>
+              <Texte ton="secondaire" className="text-sm" numberOfLines={1}>
+                {appareil?.nom ?? '?'}
+              </Texte>
+            </View>
+            <Texte poids="demi" ton="frigo" className="text-sm">
+              Changer
+            </Texte>
+          </Pressable>
         </View>
-      ) : (
-        <Texte ton="discret" className="-mt-2 text-sm">
-          Cette quantité devient le « stock plein » : ce qui manquera ensuite ira dans la liste de courses.
-        </Texte>
-      )}
+        <Segments libelle="Unité" options={OPTIONS_UNITES} valeur={unite} onChange={setUnite} teinte={appareil?.type ?? 'frigo'} />
+      </GroupeChamps>
 
-      <View className="gap-2">
-        <Champ
-          libelle="Date de péremption (facultatif)"
-          value={date}
-          onChangeText={(v) => {
-            setDate(v);
-            if (erreurs.date) setErreurs((e) => ({ ...e, date: undefined }));
-          }}
-          placeholder="JJ/MM/AAAA"
-          keyboardType="numbers-and-punctuation"
-          maxLength={10}
-          erreur={erreurs.date}
-        />
-        <View className="flex-row flex-wrap gap-2">
-          {raccourcisDate.map((r) => (
-            <Puce
-              key={r.libelle}
-              libelle={r.libelle}
-              accessibilityLabel={`Péremption dans ${r.libelle}`}
-              onPress={() => {
-                const d = new Date();
-                d.setDate(d.getDate() + r.jours);
-                setDate(formaterDateCourte(versDateISO(d)));
-                setErreurs((e) => ({ ...e, date: undefined }));
-              }}
+      <GroupeChamps
+        titre="Quantité"
+        aide={
+          existant
+            ? 'Ce qui manque pour revenir au stock plein part dans la liste de courses.'
+            : 'Cette quantité devient le « stock plein » : ce qui manquera ensuite ira dans la liste de courses.'
+        }>
+        <View className="gap-1.5">
+          {existant ? <Libelle>En stock</Libelle> : null}
+          <Compteur libelle="quantité" valeur={stock.quantite} onChange={changerQuantite} pas={pas} suffixe={suffixeUnite(unite)} />
+        </View>
+        {existant ? (
+          <View className="gap-1.5">
+            <Libelle>Stock plein</Libelle>
+            <Compteur
+              libelle="stock plein"
+              valeur={stock.quantiteMax}
+              onChange={changerMaximum}
+              min={pas}
+              minSaisie={0.001}
+              pas={pas}
+              suffixe={suffixeUnite(unite)}
             />
-          ))}
-          {date ? <Puce discrete libelle="Effacer" onPress={() => setDate('')} /> : null}
+          </View>
+        ) : null}
+      </GroupeChamps>
+
+      <GroupeChamps titre="Conservation">
+        <View className="gap-2.5">
+          <Champ
+            libelle="Date de péremption (facultatif)"
+            value={date}
+            onChangeText={(v) => {
+              setDate(v);
+              if (erreurs.date) setErreurs((e) => ({ ...e, date: undefined }));
+            }}
+            placeholder="JJ/MM/AAAA"
+            keyboardType="numbers-and-punctuation"
+            maxLength={10}
+            erreur={erreurs.date}
+          />
+          <View className="flex-row flex-wrap gap-2">
+            {raccourcisDate.map((r) => (
+              <Puce
+                key={r.libelle}
+                compacte
+                libelle={r.libelle}
+                accessibilityLabel={`Péremption dans ${r.libelle}`}
+                onPress={() => {
+                  tic();
+                  const d = new Date();
+                  d.setDate(d.getDate() + r.jours);
+                  setDate(formaterDateCourte(versDateISO(d)));
+                  setErreurs((e) => ({ ...e, date: undefined }));
+                }}
+              />
+            ))}
+            {date ? <Puce compacte discrete libelle="Effacer" onPress={() => setDate('')} /> : null}
+          </View>
         </View>
-      </View>
+        <Champ
+          libelle="Note (facultatif)"
+          value={note}
+          onChangeText={setNote}
+          placeholder="ex. pour le gratin de dimanche"
+          multiline
+          maxLength={200}
+        />
+      </GroupeChamps>
 
-      <Champ
-        libelle="Note (facultatif)"
-        value={note}
-        onChangeText={setNote}
-        placeholder="ex. pour le gratin de dimanche"
-        multiline
-        maxLength={200}
-      />
-
-      <Bouton titre={existant ? 'Enregistrer' : libre ? 'Ranger dans ce tiroir' : 'Ajouter'} icone={existant ? 'checkmark' : 'add'} onPress={enregistrer} className="mt-2" />
+      <Bouton titre={existant ? 'Enregistrer' : libre ? 'Ranger dans ce tiroir' : 'Ajouter'} icone={existant ? 'checkmark' : 'add'} onPress={enregistrer} className="mt-4" />
       {libre ? <Bouton titre="Ignorer (ne pas ranger)" variante="discret" onPress={terminer} /> : null}
     </EcranFormulaire>
   );

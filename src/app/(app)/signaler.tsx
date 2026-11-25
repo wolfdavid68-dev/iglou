@@ -1,8 +1,9 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
+import { View } from 'react-native';
 
 import { EcranFormulaire } from '@/composants/formulaire';
-import { Bouton, Carte, Champ, EnTete, Texte } from '@/composants/ui';
+import { Bouton, Carte, Champ, EnTete, Libelle, Ligne, Separateur, Texte } from '@/composants/ui';
 import { useDonnees } from '@/services/donnees-maison';
 import { afficherMessage, lancer } from '@/services/retours';
 import { useMoi } from '@/services/session';
@@ -29,7 +30,7 @@ export default function EcranSignaler() {
 
   return (
     <EcranFormulaire entete={<EnTete titre="Signaler un problème" />}>
-      <Texte ton="secondaire">
+      <Texte ton="secondaire" className="text-base leading-6">
         Un bug, quelque chose de bizarre ou une idée ? Raconte ce que tu faisais et ce qui s’est passé : ça aide à corriger plus vite.
       </Texte>
       <Champ
@@ -48,17 +49,14 @@ export default function EcranSignaler() {
         style={{ minHeight: 160 }}
         aide={`${message.length} / ${MAX}`}
       />
-      <Carte className="gap-1 p-4">
-        <Texte poids="moyen" className="text-sm">
-          Joint automatiquement
-        </Texte>
-        <Texte ton="discret" className="text-sm">
-          {appareil} · {systeme} · version {versionApp}
-        </Texte>
-        <Texte ton="discret" className="text-sm">
-          Ton e-mail ({moi.email}), pour pouvoir te répondre.
-        </Texte>
-      </Carte>
+      <View className="gap-1.5">
+        <Libelle>Joint automatiquement</Libelle>
+        <Carte className="overflow-hidden">
+          <Ligne icone="phone-portrait-outline" titre={`${appareil}, ${systeme}`} sousTitre={`Version ${versionApp} de l’appli`} />
+          <Separateur />
+          <Ligne icone="mail-outline" titre={moi.email} sousTitre="Ton e-mail, pour pouvoir te répondre" />
+        </Carte>
+      </View>
       <Bouton titre="Envoyer" icone="send" onPress={envoyer} className="mt-2" />
     </EcranFormulaire>
   );

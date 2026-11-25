@@ -60,17 +60,19 @@ function Fenetre({ d }: { d: DemandePrise }) {
         accessibilityRole="button"
         accessibilityLabel={`${a.nom}, il en reste ${formaterQuantite(a.quantite, a.unite)}. Voir la fiche complète`}
         onPress={() => repondrePrise('fiche')}
-        className="items-center gap-1 rounded-2xl py-1 active:bg-carte-enfoncee">
-        <Text className="text-6xl" accessible={false}>
-          {emojiPourNom(a.nom)}
-        </Text>
-        <Texte poids="gras" className="text-center text-xl" numberOfLines={2}>
+        className="items-center gap-1 rounded-[20px] py-1 active:scale-[0.98] active:bg-carte-enfoncee">
+        <View className="mb-1 size-20 items-center justify-center rounded-full bg-carte-enfoncee">
+          <Text className="text-5xl" accessible={false}>
+            {emojiPourNom(a.nom)}
+          </Text>
+        </View>
+        <Texte poids="titre-gras" className="text-center text-[22px] leading-7" numberOfLines={2}>
           {a.nom}
         </Texte>
         <Texte ton="secondaire" className="text-sm">
           Il en reste {formaterQuantite(a.quantite, a.unite)}
         </Texte>
-        <View className="mt-1 flex-row items-center gap-1.5 rounded-full bg-carte-enfoncee px-3 py-1.5">
+        <View className="mt-2 flex-row items-center gap-1.5 rounded-full bg-frigo-pale px-3.5 py-1.5">
           <Ionicons name="document-text-outline" size={16} color={c.frigoTexte} />
           <Texte poids="demi" ton="frigo" className="text-sm">
             Voir la fiche complète
@@ -80,19 +82,21 @@ function Fenetre({ d }: { d: DemandePrise }) {
       </Pressable>
       <Jauge stock={a} />
 
-      <Texte poids="demi" className="text-center text-base">
+      <Texte poids="titre" className="mt-1 text-center text-lg leading-6">
         Combien en as-tu pris ?
       </Texte>
-      <View className="flex-row items-center justify-center gap-4">
+      <View className="flex-row items-center justify-center gap-3">
         <BoutonIcone
           icone="remove"
           libelle={`Retirer ${formaterNombre(pas)}`}
+          couleur={c.frigoTexte}
           onPress={() => ajuster(-1)}
           desactive={prise == null || prise <= pas}
           taille={28}
-          className="size-14 bg-carte-enfoncee"
+          className="size-14 border border-contour bg-frigo-pale active:scale-95"
         />
-        <View className="min-w-24 items-center">
+        {/* Largeur fixe : sur le web, un champ sans largeur s'étale et pousse les boutons hors de la fenêtre. */}
+        <View className="w-32 items-center">
           <TextInput
             value={texte}
             onChangeText={setTexte}
@@ -102,7 +106,8 @@ function Fenetre({ d }: { d: DemandePrise }) {
             returnKeyType="done"
             onSubmitEditing={valider}
             accessibilityLabel="Quantité prise"
-            className={`min-w-24 rounded-xl px-2 py-1 text-center font-inter-gras text-4xl ${trop || prise == null ? 'text-rouge-texte' : 'text-encre'}`}
+            style={{ fontVariant: ['tabular-nums'] }}
+            className={`w-32 rounded-[14px] px-2 py-1 text-center font-titre-gras text-5xl leading-[56px] tracking-tight ${trop || prise == null ? 'text-rouge-texte' : 'text-encre'}`}
           />
           {unite ? (
             <Texte ton="secondaire" className="text-sm">
@@ -113,10 +118,11 @@ function Fenetre({ d }: { d: DemandePrise }) {
         <BoutonIcone
           icone="add"
           libelle={`Ajouter ${formaterNombre(pas)}`}
+          couleur={c.frigoTexte}
           onPress={() => ajuster(1)}
           desactive={prise != null && prise >= a.quantite}
           taille={28}
-          className="size-14 bg-carte-enfoncee"
+          className="size-14 border border-contour bg-frigo-pale active:scale-95"
         />
       </View>
 

@@ -7,6 +7,12 @@ import { RECETTES_BRUTES_5 } from './recettes-donnees-5';
 import { RECETTES_BRUTES_6 } from './recettes-donnees-6';
 import { RECETTES_BRUTES_7 } from './recettes-donnees-7';
 import { RECETTES_BRUTES_8 } from './recettes-donnees-8';
+import { RECETTES_BRUTES_9 } from './recettes-donnees-9';
+import { RECETTES_BRUTES_10 } from './recettes-donnees-10';
+import { RECETTES_BRUTES_11 } from './recettes-donnees-11';
+import { RECETTES_BRUTES_12 } from './recettes-donnees-12';
+import { RECETTES_BRUTES_13 } from './recettes-donnees-13';
+import { RECETTES_BRUTES_14 } from './recettes-donnees-14';
 import { INGREDIENTS, type CleIngredient, type DefIngredient } from './recettes-ingredients';
 import { normaliser } from './texte';
 import type { Aliment, CourseLibre } from './types';
@@ -158,7 +164,7 @@ export const HEALTHY_EXISTANTES = new Set([
   'soupe-asiatique',
 ]);
 
-export const RECETTES: Recette[] = [...RECETTES_BRUTES, ...RECETTES_BRUTES_2, ...RECETTES_BRUTES_3, ...RECETTES_BRUTES_4, ...RECETTES_BRUTES_5, ...RECETTES_BRUTES_6, ...RECETTES_BRUTES_7, ...RECETTES_BRUTES_8].map(
+export const RECETTES: Recette[] = [...RECETTES_BRUTES, ...RECETTES_BRUTES_2, ...RECETTES_BRUTES_3, ...RECETTES_BRUTES_4, ...RECETTES_BRUTES_5, ...RECETTES_BRUTES_6, ...RECETTES_BRUTES_7, ...RECETTES_BRUTES_8, ...RECETTES_BRUTES_9, ...RECETTES_BRUTES_10, ...RECETTES_BRUTES_11, ...RECETTES_BRUTES_12, ...RECETTES_BRUTES_13, ...RECETTES_BRUTES_14].map(
   (r) => ({
     ...r,
     healthy: r.healthy === true || HEALTHY_EXISTANTES.has(r.id),
@@ -230,7 +236,7 @@ function analyser(recette: Recette, enStock: (cle: CleIngredient) => Aliment[], 
 
   const score =
     requis > 0
-      ? (disponibles / requis) * 100 + urgents.length * 40 - manquants.length * 10 + optionnelsTrouves * 2
+      ? (disponibles / requis) * 100 + urgents.length * 5 - manquants.length * 10 + optionnelsTrouves * 2
       : 0;
 
   return { recette, lignes, disponibles, requis, manquants, urgents, score };
@@ -249,7 +255,7 @@ function pertinente(s: Suggestion): boolean {
 
 /**
  * Recettes réalisables (ou presque) avec l'inventaire, les meilleures d'abord :
- * celles qui utilisent ce qu'on a, et surtout ce qui périme bientôt.
+ * celles qui utilisent ce qu'on a (ce qui périme bientôt donne un léger bonus).
  */
 export function suggererRecettes(
   aliments: Aliment[],
@@ -282,4 +288,111 @@ export function manquantsAAjouter(
     const def: DefIngredient = INGREDIENTS[ing.cle];
     return !noms.some((n) => correspondMots(def, n));
   });
+}
+
+// ---------------- Catalogue, recherche, recette du jour ----------------
+
+/** Les plus faisables d'abord : moins de manquants, puis meilleur score, puis ordre alphabétique. */
+function parFaisabilite(a: Suggestion, b: Suggestion): number {
+  return a.manquants.length - b.manquants.length || b.score - a.score || a.recette.nom.localeCompare(b.recette.nom, 'fr');
+}
+
+/** Tout le catalogue analysé face à l'inventaire (même les recettes infaisables), les plus faisables d'abord. */
+export function analyserRecettes(
+  aliments: Aliment[],
+  aujourdHui: Date = new Date(),
+  recettes: Recette[] = RECETTES,
+): Suggestion[] {
+  const enStock = indexerStock(aliments);
+  return recettes.map((r) => analyser(r, enStock, aujourdHui)).sort(parFaisabilite);
+}
+
+/**
+ * Recherche dans le catalogue : chaque mot tapé doit commencer un mot du nom
+ * de la recette ou d'un de ses ingrédients (« poul curry » trouve le poulet au
+ * curry). Les recettes dont le nom correspond passent devant ; l'ordre reçu est
+ * gardé sinon.
+ */
+export function rechercherRecettes<T extends { recette: Recette }>(liste: T[], texte: string): T[] {
+  const cherches = mots(texte);
+  if (cherches.length === 0) return liste;
+  const trouve = (motsCible: string[]) => cherches.every((c) => motsCible.some((m) => m.startsWith(c)));
+  const parNom: T[] = [];
+  const parIngredient: T[] = [];
+  for (const item of liste) {
+    const r = item.recette;
+    if (trouve(mots(r.nom))) parNom.push(item);
+    else if (trouve([...mots(r.nom), ...r.ingredients.flatMap((i) => mots(i.nom))])) parIngredient.push(item);
+  }
+  return [...parNom, ...parIngredient];
+}
+
+/** Catégories servies comme repas principal : candidates à la « recette du jour ». */
+const CATEGORIES_DU_JOUR = new Set<Categorie>(['plat', 'soupe', 'salade']);
+
+/**
+ * Recette du jour : une des meilleures recettes prêtes (sinon presque prêtes),
+ * plutôt un plat, une soupe ou une salade. Elle change chaque jour mais reste
+ * la même toute la journée.
+ */
+export function recetteDuJour(suggestions: Suggestion[], aujourdHui: Date = new Date()): Suggestion | null {
+  const pretes = suggestions.filter((s) => estPrete(s));
+  const groupe = pretes.length ? pretes : suggestions.filter((s) => s.manquants.length <= 1);
+  if (groupe.length === 0) return null;
+  const repas = groupe.filter((s) => CATEGORIES_DU_JOUR.has(s.recette.categorie));
+  const candidates = (repas.length ? repas : groupe).slice(0, 7);
+  const jour = Math.floor(Date.UTC(aujourdHui.getFullYear(), aujourdHui.getMonth(), aujourdHui.getDate()) / 86_400_000);
+  return candidates[jour % candidates.length];
+}
+
+// ---------------- Nombre de personnes ----------------
+
+/** Noms d'unités comptables, au singulier, et leur pluriel. */
+const UNITES_COMPTABLES: Record<string, string> = {
+  gousse: 'gousses', tranche: 'tranches', pave: 'pavés', pavé: 'pavés', cuisse: 'cuisses', escalope: 'escalopes',
+  branche: 'branches', feuille: 'feuilles', poignée: 'poignées', filet: 'filets', steak: 'steaks', botte: 'bottes',
+  boîte: 'boîtes', cube: 'cubes', morceau: 'morceaux', sachet: 'sachets', bouquet: 'bouquets', blanc: 'blancs',
+  pincée: 'pincées', tomate: 'tomates', laitue: 'laitues',
+};
+const SINGULIERS: Record<string, string> = Object.fromEntries(Object.entries(UNITES_COMPTABLES).map(([s, p]) => [p, s]));
+
+const UNITES_MESUREES = new Set(['g', 'kg', 'cl', 'l', 'ml']);
+
+function lireNombre(texte: string): number {
+  const [n, d] = texte.split('/');
+  return d ? Number(n) / Number(d) : Number(n.replace(',', '.'));
+}
+
+function ecrireNombre(n: number): string {
+  if (n === 0.5) return '1/2';
+  if (n === 0.25) return '1/4';
+  return String(Math.round(n * 10) / 10).replace('.', ',');
+}
+
+/** Arrondi lisible : au gramme près ne sert à rien, un œuf se compte entier (ou par moitié). */
+function arrondirQuantite(n: number, unite: string | undefined): number {
+  if (unite === 'g' || unite === 'ml') return n >= 250 ? Math.round(n / 10) * 10 : Math.max(5, Math.round(n / 5) * 5);
+  if (unite === 'cl') return Math.max(1, Math.round(n));
+  if (unite === 'kg' || unite === 'l') return Math.max(0.1, Math.round(n * 10) / 10);
+  if (n < 0.375) return 0.25;
+  if (n < 0.75) return 0.5;
+  return n < 10 ? Math.round(n * 2) / 2 : Math.round(n);
+}
+
+/**
+ * Adapte la quantité d'un ingrédient au nombre de personnes : seul le nombre
+ * de tête est recalculé (« 1 boîte de 400 g » → « 2 boîtes de 400 g »), avec
+ * l'accord des unités courantes. Les textes sans nombre restent tels quels.
+ */
+export function adapterQuantite(quantite: string | null, portionsBase: number, portions: number): string | null {
+  if (!quantite || portions === portionsBase || portionsBase <= 0) return quantite;
+  const m = /^(\d+\/\d+|\d+(?:[.,]\d+)?)(\s*)(\S*)(.*)$/.exec(quantite);
+  if (!m) return quantite;
+  const [, nombre, espace, mot, reste] = m;
+  const unite = mot.toLowerCase();
+  const n = arrondirQuantite((lireNombre(nombre) * portions) / portionsBase, UNITES_MESUREES.has(unite) ? unite : undefined);
+  let motAccorde = mot;
+  if (n > 1 && UNITES_COMPTABLES[unite]) motAccorde = UNITES_COMPTABLES[unite];
+  else if (n <= 1 && SINGULIERS[unite]) motAccorde = SINGULIERS[unite];
+  return `${ecrireNombre(n)}${espace}${motAccorde}${reste}`;
 }

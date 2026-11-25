@@ -17,27 +17,57 @@ export function texteStock(a: Pick<Aliment, 'quantite' | 'quantiteMax' | 'unite'
   return unite ? `${base} ${unite}` : base;
 }
 
-/** Emoji, nom, stock et jauge d'un aliment (tiroirs, recherche). */
+/**
+ * Emoji, nom, stock et jauge d'un aliment (tiroirs, recherche).
+ * Compact (cellule de tiroir, demi-largeur) : le nom a toute la largeur et
+ * peut tenir sur deux lignes ; le stock passe à côté de la jauge.
+ */
 export function ApercuAliment({ aliment, compact = false }: { aliment: Aliment; compact?: boolean }) {
   const c = useCouleurs();
   const peremption = etatPeremption(aliment.datePeremption);
   const epuise = estEpuise(aliment);
+  const alerte =
+    peremption === 'depassee' || peremption === 'proche' ? (
+      <Ionicons name="time-outline" size={compact ? 13 : 14} color={peremption === 'depassee' ? c.rougeTexte : c.orangeTexte} />
+    ) : null;
+  const stock = (
+    <Texte ton={epuise ? 'rouge' : 'secondaire'} poids={epuise ? 'demi' : 'normal'} className="text-xs" style={{ fontVariant: ['tabular-nums'] }}>
+      {texteStock(aliment)}
+    </Texte>
+  );
+
+  if (compact) {
+    return (
+      <View className="flex-1 flex-row items-center gap-2">
+        <Text className="text-xl" accessible={false}>
+          {emojiPourNom(aliment.nom)}
+        </Text>
+        <View className="flex-1 gap-1">
+          <Texte poids="moyen" className="text-sm leading-[18px]" numberOfLines={2}>
+            {aliment.nom}
+          </Texte>
+          <View className="flex-row items-center gap-1.5">
+            <Jauge stock={aliment} className="flex-1" />
+            {alerte}
+            {stock}
+          </View>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View className="flex-1 flex-row items-center gap-2">
-      <Text className={compact ? 'text-xl' : 'text-2xl'} accessible={false}>
+      <Text className="text-2xl" accessible={false}>
         {emojiPourNom(aliment.nom)}
       </Text>
       <View className="flex-1 gap-1">
         <View className="flex-row items-center gap-1">
-          <Texte poids="moyen" className={`flex-1 ${compact ? 'text-sm' : 'text-base'}`} numberOfLines={1}>
+          <Texte poids="moyen" className="flex-1 text-base" numberOfLines={1}>
             {aliment.nom}
           </Texte>
-          {peremption === 'depassee' || peremption === 'proche' ? (
-            <Ionicons name="time-outline" size={14} color={peremption === 'depassee' ? c.rougeTexte : c.orangeTexte} />
-          ) : null}
-          <Texte ton={epuise ? 'rouge' : 'secondaire'} poids={epuise ? 'demi' : 'normal'} className="text-xs">
-            {texteStock(aliment)}
-          </Texte>
+          {alerte}
+          {stock}
         </View>
         <Jauge stock={aliment} />
       </View>

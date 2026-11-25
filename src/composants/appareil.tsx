@@ -14,7 +14,7 @@ export function IconeAppareil({ type, taille = 'moyenne' }: { type: TypeAppareil
   const c = useCouleurs();
   const petite = taille === 'petite';
   return (
-    <View className={`items-center justify-center rounded-xl ${classesAppareil[type].pale} ${petite ? 'size-9' : 'size-12'}`}>
+    <View className={`items-center justify-center ${classesAppareil[type].pale} ${petite ? 'size-9 rounded-[12px]' : 'size-12 rounded-[14px]'}`}>
       <MaterialCommunityIcons
         name={type === 'congelateur' ? 'snowflake' : 'fridge-outline'}
         size={petite ? 20 : 26}

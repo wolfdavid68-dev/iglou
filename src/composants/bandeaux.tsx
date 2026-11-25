@@ -1,18 +1,23 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
-import { Pressable } from 'react-native';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Pressable, View } from 'react-native';
 import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Annulable } from '@/domaine/annulation';
+import { tic } from '@/services/haptique';
 import { abonnerMessages, annulation, fermerMessage, messageCourant, type Message } from '@/services/retours';
 import { useCouleurs } from '@/theme';
-import { Texte } from './ui';
+import { Texte, type NomIcone } from './ui';
 
 /**
- * Bandeau du bas : annulation (« Œufs supprimé · ANNULER », 5 s) ou message
+ * Bandeau du bas : annulation (« Œufs supprimé · Annuler », 5 s) ou message
  * court. Placé une seule fois à la racine ; `decalage` le remonte au-dessus
  * de la barre d'onglets.
+ *
+ * Surface flottante claire en clair, sombre en sombre (carte + relief) :
+ * l'encre du thème y garde un contraste ≥ 4,5:1 dans les deux modes, et
+ * l'action « Annuler » prend la couleur signature.
  */
 export function BandeauBas({ decalage = 0 }: { decalage?: number }) {
   const insets = useSafeAreaInsets();
@@ -27,47 +32,85 @@ export function BandeauBas({ decalage = 0 }: { decalage?: number }) {
 
   if (annulable) {
     return (
-      <Animated.View
-        key={`a${annulable.id}`}
-        entering={FadeInDown.duration(180)}
-        exiting={FadeOutDown.duration(150)}
-        style={{ bottom: bas }}
-        className="absolute left-4 right-4 min-h-12 flex-row items-center rounded-2xl bg-encre pl-4 shadow-lg"
-        accessibilityLiveRegion="polite">
-        <Texte ton="aucun" className="flex-1 py-3 text-base text-fond" numberOfLines={2}>
+      <Surface key={`a${annulable.id}`} bas={bas} icone="arrow-undo" fondIcone="bg-carte-enfoncee" couleurIcone={c.encre2}>
+        <Texte poids="moyen" className="flex-1 py-3 text-base" numberOfLines={2}>
           {annulable.message}
         </Texte>
         <Pressable
           accessibilityRole="button"
-          onPress={() => annulation.annuler(annulable.id)}
-          className="min-h-12 justify-center rounded-2xl px-4 active:opacity-70">
-          <Texte poids="gras" ton="aucun" className="text-base text-courses-inverse">
-            ANNULER
+          accessibilityLabel={`Annuler : ${annulable.message}`}
+          hitSlop={4}
+          onPress={() => {
+            tic();
+            annulation.annuler(annulable.id);
+          }}
+          className="min-h-12 items-center justify-center rounded-full bg-frigo-pale px-4 active:scale-95 active:opacity-80">
+          <Texte poids="demi" ton="frigo" className="text-base">
+            Annuler
           </Texte>
         </Pressable>
-      </Animated.View>
+      </Surface>
     );
   }
 
   if (message) {
+    const erreur = message.type === 'erreur';
     return (
-      <Animated.View
+      <Surface
         key={`m${message.id}`}
-        entering={FadeInDown.duration(180)}
-        exiting={FadeOutDown.duration(150)}
-        style={{ bottom: bas }}
-        className={`absolute left-4 right-4 min-h-12 flex-row items-center gap-3 rounded-2xl px-4 shadow-lg ${
-          message.type === 'erreur' ? 'bg-rouge-fort' : 'bg-encre'
-        }`}
-        accessibilityLiveRegion="polite">
-        <Texte ton="aucun" className={`flex-1 py-3 text-base ${message.type === 'erreur' ? 'text-white' : 'text-fond'}`} numberOfLines={3}>
+        bas={bas}
+        icone={erreur ? 'alert-circle' : 'checkmark-circle'}
+        fondIcone={erreur ? 'bg-rouge-pale' : 'bg-frigo-pale'}
+        couleurIcone={erreur ? c.rougeTexte : c.frigoTexte}
+        erreur={erreur}>
+        <Texte poids="moyen" className="flex-1 py-3 text-base" numberOfLines={3}>
           {message.texte}
         </Texte>
-        <Pressable accessibilityRole="button" accessibilityLabel="Fermer" onPress={fermerMessage} className="size-10 items-center justify-center">
-          <Ionicons name="close" size={20} color={message.type === 'erreur' ? c.blanc : c.encre3} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Fermer"
+          hitSlop={4}
+          onPress={fermerMessage}
+          className="size-12 items-center justify-center rounded-full active:bg-carte-enfoncee">
+          <Ionicons name="close" size={20} color={c.encre2} />
         </Pressable>
-      </Animated.View>
+      </Surface>
     );
   }
   return null;
+}
+
+/** Carte flottante commune : tuile d'icône à gauche, contenu, relief marqué. */
+function Surface({
+  bas,
+  icone,
+  fondIcone,
+  couleurIcone,
+  erreur = false,
+  children,
+}: {
+  bas: number;
+  icone: NomIcone;
+  fondIcone: string;
+  couleurIcone: string;
+  erreur?: boolean;
+  children: ReactNode;
+}) {
+  const c = useCouleurs();
+  return (
+    <Animated.View
+      entering={FadeInDown.duration(180)}
+      exiting={FadeOutDown.duration(150)}
+      style={{ bottom: bas, boxShadow: c.ombre.relief }}
+      className={`absolute left-4 right-4 min-h-14 flex-row items-center gap-3 rounded-[20px] border bg-carte py-1 pl-2 pr-1.5 ${
+        erreur ? 'border-rouge-texte/40' : 'border-contour'
+      }`}
+      accessibilityRole={erreur ? 'alert' : undefined}
+      accessibilityLiveRegion={erreur ? 'assertive' : 'polite'}>
+      <View className={`size-10 items-center justify-center rounded-[14px] ${fondIcone}`}>
+        <Ionicons name={icone} size={20} color={couleurIcone} />
+      </View>
+      {children}
+    </Animated.View>
+  );
 }

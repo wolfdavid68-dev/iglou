@@ -1,5 +1,6 @@
 import '../global.css';
 
+import { BricolageGrotesque_600SemiBold, BricolageGrotesque_700Bold } from '@expo-google-fonts/bricolage-grotesque';
 import { Caveat_700Bold } from '@expo-google-fonts/caveat';
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, useFonts } from '@expo-google-fonts/inter';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
@@ -22,7 +23,15 @@ SplashScreen.preventAutoHideAsync();
 restaurerApparence();
 
 export default function Racine() {
-  const [policesChargees, erreurPolices] = useFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Caveat_700Bold });
+  const [policesChargees, erreurPolices] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    BricolageGrotesque_600SemiBold,
+    BricolageGrotesque_700Bold,
+    Caveat_700Bold,
+  });
   const c = useCouleurs();
   const base = c.sombre ? DarkTheme : DefaultTheme;
   const theme = {

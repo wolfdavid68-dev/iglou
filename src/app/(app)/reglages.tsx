@@ -182,7 +182,7 @@ export default function EcranReglages() {
       await partagerJson(nomFichierExport(`${maison.nom}-avant-import`), construireExport(maison.nom, inventaire));
       const operations = planImport(mode, inventaire, v.fichier, () => nouvelId());
       await appliquerImport(maisonId, operations, auteur);
-      afficherMessage(mode === 'remplacer' ? 'Inventaire remplacé ✔' : 'Inventaire fusionné ✔');
+      afficherMessage(mode === 'remplacer' ? 'Inventaire remplacé' : 'Inventaire fusionné');
     } catch (e) {
       signalerErreur(e);
     } finally {
@@ -218,8 +218,8 @@ export default function EcranReglages() {
 
   return (
     <View className="flex-1 bg-fond">
-      <EnTeteDegrade couleurs={c.hero} motif="cog" titre="Réglages" sousTitre={maison.nom} retour={false} />
-      <ScrollView contentContainerClassName="px-4 pb-10">
+      <EnTeteDegrade couleurs={c.hero} motif="cog" titre="Réglages" sousTitre={maison.nom} />
+      <ScrollView contentContainerClassName="px-4 pb-16">
         <TitreSection className="pt-4">Ma maison</TitreSection>
         <Carte className="overflow-hidden p-0">
           <Ligne
@@ -245,17 +245,23 @@ export default function EcranReglages() {
 
         <TitreSection>Code d’invitation</TitreSection>
         <Carte className="items-center gap-4 p-4">
-          <Texte
-            poids="gras"
-            className="text-4xl tracking-[0.25em]"
-            selectable
-            accessibilityLabel={`Code d’invitation : ${maison.codeInvitation.split('').join(' ')}`}>
-            {maison.codeInvitation}
-          </Texte>
-          <Texte ton="secondaire" className="text-center text-sm">
+          {/* Le code, comme gravé sur un ticket : grand Bricolage espacé sur un creux. */}
+          <View className="w-full items-center rounded-2xl bg-carte-enfoncee px-4 py-5">
+            <Texte
+              poids="titre-gras"
+              className="text-[40px] leading-[48px]"
+              // Espacement en style : la classe `tracking-tight` du poids « titre » l'emporterait sur une classe.
+              // Le retrait à gauche compense l'espace ajouté après la dernière lettre (code bien centré).
+              style={{ fontVariant: ['tabular-nums'], letterSpacing: 12, paddingLeft: 12 }}
+              selectable
+              accessibilityLabel={`Code d’invitation : ${maison.codeInvitation.split('').join(' ')}`}>
+              {maison.codeInvitation}
+            </Texte>
+          </View>
+          <Texte ton="secondaire" className="px-2 text-center text-sm">
             À saisir dans « Rejoindre une maison » sur le téléphone de la personne à inviter.
           </Texte>
-          <View className="w-full gap-2">
+          <View className="w-full gap-1">
             <Bouton titre="Partager le code" icone="share-social-outline" onPress={() => partagerTexte(messageInvitation(maison.nom, maison.codeInvitation))} />
             {proprietaire && <Bouton titre="Régénérer le code" icone="refresh" variante="discret" onPress={regenerer} />}
           </View>
@@ -271,7 +277,7 @@ export default function EcranReglages() {
                 {i > 0 && <Separateur />}
                 <Ligne
                   icone={m.role === 'proprietaire' ? 'star-outline' : 'person-outline'}
-                  couleurIcone={m.role === 'proprietaire' ? c.orangeTexte : undefined}
+                  couleurIcone={m.role === 'proprietaire' ? c.frigoTexte : undefined}
                   titre={estMoi ? `${m.prenom} (toi)` : m.prenom}
                   sousTitre={m.role === 'proprietaire' ? 'Propriétaire' : 'Membre'}
                   onPress={retirable ? () => retirer(m) : undefined}
@@ -292,13 +298,13 @@ export default function EcranReglages() {
 
         <TitreSection>Mon compte</TitreSection>
         <Carte className="overflow-hidden p-0">
-          <Ligne icone="person-circle-outline" titre={moi.prenom || 'Mon prénom'} sousTitre="Mon prénom · toucher pour modifier" onPress={changerMonPrenom} />
+          <Ligne icone="person-circle-outline" titre={moi.prenom || 'Mon prénom'} sousTitre="Ton prénom, visible par les membres" onPress={changerMonPrenom} />
           <Separateur />
           <Ligne icone="mail-outline" titre={moi.email} sousTitre="Adresse e-mail" />
           <Separateur />
-          <Ligne icone="log-out-outline" titre="Se déconnecter" onPress={seDeconnecter} droite={<View />} />
-          <Separateur />
           <Ligne icone="shield-checkmark-outline" titre="Politique de confidentialité" sousTitre="Quelles données, pourquoi, tes droits" onPress={() => ouvrirLien(LIEN_CONFIDENTIALITE)} />
+          <Separateur />
+          <Ligne icone="log-out-outline" titre="Se déconnecter" danger onPress={seDeconnecter} droite={<View />} />
         </Carte>
 
         <TitreSection>Sauvegarde</TitreSection>

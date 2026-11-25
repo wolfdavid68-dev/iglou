@@ -6,16 +6,16 @@ import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { Degrade } from '@/composants/appareil';
 import { EnTeteDegrade } from '@/composants/en-tete-degrade';
 import { FrigoFantome, FrigoIllustre } from '@/composants/frigo';
-import { Bouton, BoutonFlottant, Carte, Chargement, EtatVide, Texte, type NomIcone } from '@/composants/ui';
+import { Bouton, BoutonFlottant, Carte, Chargement, EtatVide, Texte } from '@/composants/ui';
 import { calculerListeCourses, compterArticles } from '@/domaine/courses';
 import { emojiPourNom } from '@/domaine/emoji';
-import { aConsommerEnPriorite } from '@/domaine/inventaire';
 import { cequiPartLePlusVite, JOURS_STATS, type Tendance } from '@/domaine/statistiques';
 import { changerDeMaison } from '@/services/changer-maison';
 import { useConsommations } from '@/services/consommations';
 import { useDonnees } from '@/services/donnees-maison';
 import { useMaisons } from '@/services/maisons';
 import { useMoi } from '@/services/session';
+import { tic } from '@/services/haptique';
 import { useCouleurs } from '@/theme';
 
 const ESPACE_FRIGOS = 20;
@@ -27,6 +27,7 @@ export default function Maison() {
   const { adhesions, maisonActiveId, choisirMaison } = useMaisons();
   const { width } = useWindowDimensions();
   const largeurFrigo = Math.min(240, Math.round(width * 0.6));
+  const aRacheter = compterArticles(calculerListeCourses(aliments, appareils, libres));
 
   const nouvelAppareil = () => router.push('/appareil/editer');
   const changer = () => changerDeMaison(adhesions, maisonActiveId, choisirMaison, maison?.nom);
@@ -34,13 +35,7 @@ export default function Maison() {
   return (
     <View className="flex-1 bg-fond">
       <ScrollView contentContainerClassName="grow pb-32">
-        <EnTeteAccueil
-          nomMaison={maison?.nom ?? 'Ma maison'}
-          aRacheter={compterArticles(calculerListeCourses(aliments, appareils, libres))}
-          aSurveiller={aConsommerEnPriorite(aliments, appareils, tiroirs).length}
-          total={aliments.length}
-          onChanger={changer}
-        />
+        <EnTeteAccueil nomMaison={maison?.nom ?? 'Ma maison'} onChanger={changer} />
 
         {chargement ? (
           <Chargement />
@@ -49,39 +44,40 @@ export default function Maison() {
             <Bouton titre="Ajouter un appareil" icone="add" onPress={nouvelAppareil} className="mt-2" />
           </EtatVide>
         ) : (
-          <View className="gap-3 pt-6">
-            <View className="flex-row items-baseline justify-between px-4">
-              <Texte poids="gras" className="text-lg">
-                Mes appareils
-              </Texte>
-              <Texte ton="discret" className="text-sm">
-                Touche pour ouvrir
-              </Texte>
-            </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              snapToInterval={largeurFrigo + ESPACE_FRIGOS}
-              decelerationRate="fast"
-              contentContainerClassName="px-4 pb-2 pt-3"
-              contentContainerStyle={{ gap: ESPACE_FRIGOS }}>
-              {appareils.map((a, i) => (
-                <Animated.View key={a.id} entering={FadeInRight.duration(450).delay(90 * i)}>
-                  <FrigoIllustre
-                    appareil={a}
-                    tiroirs={tiroirs.filter((t) => t.appareilId === a.id)}
-                    contenu={aliments.filter((x) => x.appareilId === a.id)}
-                    largeur={largeurFrigo}
-                    onOuvrir={() => router.push({ pathname: '/appareil/[id]', params: { id: a.id } })}
-                  />
+          <View className="gap-8 pt-2">
+            {/* 1. Les appareils, porte fermée : on touche pour ouvrir. */}
+            <View className="gap-1">
+              <TitreBloc titre="Mes appareils" />
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                snapToInterval={largeurFrigo + ESPACE_FRIGOS}
+                decelerationRate="fast"
+                contentContainerClassName="px-4 pb-2 pt-3"
+                contentContainerStyle={{ gap: ESPACE_FRIGOS }}>
+                {appareils.map((a, i) => (
+                  <Animated.View key={a.id} entering={FadeInRight.duration(450).delay(90 * i)}>
+                    <FrigoIllustre
+                      appareil={a}
+                      tiroirs={tiroirs.filter((t) => t.appareilId === a.id)}
+                      contenu={aliments.filter((x) => x.appareilId === a.id)}
+                      largeur={largeurFrigo}
+                      onOuvrir={() => router.push({ pathname: '/appareil/[id]', params: { id: a.id } })}
+                    />
+                  </Animated.View>
+                ))}
+                <Animated.View entering={FadeInRight.duration(450).delay(90 * appareils.length)}>
+                  <FrigoFantome largeur={largeurFrigo} onPress={nouvelAppareil} />
                 </Animated.View>
-              ))}
-              <Animated.View entering={FadeInRight.duration(450).delay(90 * appareils.length)}>
-                <FrigoFantome largeur={largeurFrigo} onPress={nouvelAppareil} />
-              </Animated.View>
-            </ScrollView>
+              </ScrollView>
+            </View>
 
-            <Animated.View entering={FadeInDown.duration(350).delay(200)} className="mt-3 px-4">
+            {/* 2. Les courses, en une ligne. */}
+            <View className="px-4">
+              <LigneCourses nombre={aRacheter} onPress={() => router.push('/courses')} />
+            </View>
+
+            <Animated.View entering={FadeInDown.duration(350).delay(200)} className="px-4">
               <CarteTendances tendances={tendances} />
             </Animated.View>
           </View>
@@ -92,20 +88,35 @@ export default function Maison() {
   );
 }
 
-/** En-tête en dégradé : salutation, maison active (touchable pour changer), réglages et chiffres clés. */
-function EnTeteAccueil({
-  nomMaison,
-  aRacheter,
-  aSurveiller,
-  total,
-  onChanger,
-}: {
-  nomMaison: string;
-  aRacheter: number;
-  aSurveiller: number;
-  total: number;
-  onChanger: () => void;
-}) {
+/** Titre de bloc de l'accueil, avec une action discrète à droite. */
+function TitreBloc({ titre, action, onAction, nombre }: { titre: string; action?: string; onAction?: () => void; nombre?: number }) {
+  return (
+    <View className="flex-row items-center justify-between gap-3 px-4">
+      <View className="flex-row items-center gap-2">
+        <Texte poids="titre" className="text-xl" accessibilityRole="header">
+          {titre}
+        </Texte>
+        {nombre ? (
+          <View className="min-w-6 items-center rounded-full bg-frigo-pale px-2 py-0.5">
+            <Texte poids="demi" ton="frigo" className="text-xs" style={{ fontVariant: ['tabular-nums'] }}>
+              {nombre}
+            </Texte>
+          </View>
+        ) : null}
+      </View>
+      {action && onAction ? (
+        <Pressable onPress={onAction} accessibilityRole="button" hitSlop={12} className="min-h-12 justify-center active:opacity-60">
+          <Texte poids="demi" ton="frigo" className="text-sm">
+            {action}
+          </Texte>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+/** En-tête givré : salutation, maison active (touchable pour changer), avatar (réglages) et recherche. */
+function EnTeteAccueil({ nomMaison, onChanger }: { nomMaison: string; onChanger: () => void }) {
   const router = useRouter();
   const c = useCouleurs();
   const { prenom } = useMoi();
@@ -116,52 +127,67 @@ function EnTeteAccueil({
       motif="snowflake"
       retour={false}
       titre={nomMaison}
-      surTitre={`${salutation()} ${prenom} 👋`}
+      surTitre={`${salutation()} ${prenom}`}
       onTitre={onChanger}
       libelleTitre={`${nomMaison}, changer de maison`}
       actions={
-        <>
-          {/* Avatar : initiale du prénom, même « verre » que BoutonVerre. */}
-          <Pressable
-            onPress={() => router.push('/reglages')}
-            accessibilityRole="button"
-            accessibilityLabel="Réglages"
-            hitSlop={4}
-            className="size-12 items-center justify-center rounded-full border border-white/25 bg-white/15 active:bg-white/30">
-            <Texte poids="gras" ton="blanc" className="text-lg">
-              {prenom.charAt(0).toUpperCase()}
-            </Texte>
-          </Pressable>
-        </>
+        // Avatar : initiale du prénom sur la couleur signature, ouvre les réglages.
+        <Pressable
+          onPress={() => {
+            tic();
+            router.push('/reglages');
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Réglages"
+          hitSlop={4}
+          style={{ boxShadow: c.ombre.carte }}
+          className="size-12 items-center justify-center rounded-full border-2 border-carte bg-frigo-fort active:scale-95 active:opacity-90">
+          <Texte poids="titre-gras" ton="blanc" className="text-xl leading-6">
+            {prenom.charAt(0).toUpperCase()}
+          </Texte>
+        </Pressable>
       }>
-      <View className="flex-row gap-3">
-        <TuileChiffre valeur={aRacheter} libelle="à racheter" icone="cart-outline" onPress={() => router.push('/courses')} />
-        <TuileChiffre valeur={aSurveiller} libelle="à surveiller" icone="time-outline" onPress={aSurveiller ? () => router.push('/recherche') : undefined} />
-        <TuileChiffre valeur={total} libelle={total > 1 ? 'aliments' : 'aliment'} icone="nutrition-outline" />
-      </View>
+      {/* Fausse barre de recherche : ouvre l'écran Recherche, clavier prêt. */}
+      <Pressable
+        onPress={() => router.push({ pathname: '/recherche', params: { focus: '1' } })}
+        accessibilityRole="search"
+        accessibilityLabel="Chercher un aliment dans la maison"
+        style={{ boxShadow: c.ombre.carte }}
+        className="min-h-[52px] flex-row items-center gap-2 rounded-2xl border border-contour bg-carte px-4 active:scale-[0.99] active:bg-carte-enfoncee">
+        <Ionicons name="search" size={20} color={c.encre3} />
+        <Texte ton="discret" className="flex-1 text-base">
+          Chercher dans la maison
+        </Texte>
+      </Pressable>
     </EnTeteDegrade>
   );
 }
 
-/** Chiffre clé de l'en-tête ; le chevron signale les tuiles qui ouvrent un écran. */
-function TuileChiffre({ valeur, libelle, icone, onPress }: { valeur: number; libelle: string; icone: NomIcone; onPress?: () => void }) {
+/** Ligne « Courses » : combien d'articles manquent, touche pour ouvrir la liste. */
+function LigneCourses({ nombre, onPress }: { nombre: number; onPress: () => void }) {
+  const c = useCouleurs();
   return (
     <Pressable
-      onPress={onPress}
-      disabled={!onPress}
-      accessibilityRole={onPress ? 'button' : 'text'}
-      accessibilityLabel={`${valeur} ${libelle}`}
-      className="flex-1 gap-1 rounded-2xl border border-white/25 bg-white/15 p-3 active:bg-white/25">
-      <View className="flex-row items-center justify-between">
-        <Ionicons name={icone} size={18} color="rgba(255,255,255,0.85)" />
-        {onPress ? <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.7)" /> : null}
+      onPress={() => {
+        tic();
+        onPress();
+      }}
+      accessibilityRole="button"
+      accessibilityLabel={nombre ? `${nombre} article${nombre > 1 ? 's' : ''} à racheter, ouvrir la liste de courses` : 'Liste de courses'}
+      style={{ boxShadow: c.ombre.carte }}
+      className="min-h-[72px] flex-row items-center gap-3 rounded-[20px] border border-contour bg-carte px-4 py-3 active:scale-[0.99] active:bg-carte-enfoncee">
+      <View className="size-11 items-center justify-center rounded-[14px] bg-courses-pale">
+        <Ionicons name="cart" size={21} color={c.coursesTexte} />
       </View>
-      <Texte poids="gras" ton="blanc" className="text-2xl">
-        {valeur}
-      </Texte>
-      <Texte poids="moyen" ton="aucun" className="text-xs text-white/85" numberOfLines={1}>
-        {libelle}
-      </Texte>
+      <View className="flex-1">
+        <Texte poids="titre" className="text-lg leading-6">
+          {nombre ? `${nombre} article${nombre > 1 ? 's' : ''} à racheter` : 'Tout est plein'}
+        </Texte>
+        <Texte ton="secondaire" className="text-sm">
+          {nombre ? 'Ta liste de courses est prête' : 'Rien à racheter pour l’instant'}
+        </Texte>
+      </View>
+      <Ionicons name="chevron-forward" size={20} color={c.encre3} />
     </Pressable>
   );
 }
@@ -177,13 +203,13 @@ function CarteTendances({ tendances }: { tendances: Tendance[] }) {
   const record = tendances[0]?.sorties ?? 1;
 
   return (
-    <Carte className="gap-4 p-4 shadow-sm">
+    <Carte className="gap-4 p-4">
       <View className="flex-row items-center gap-3">
-        <View className="size-10 items-center justify-center rounded-2xl bg-orange-pale">
-          <Ionicons name="flame" size={20} color={c.orangeTexte} />
+        <View className="size-11 items-center justify-center rounded-[14px] bg-courses-pale">
+          <Ionicons name="trending-up" size={22} color={c.coursesTexte} />
         </View>
         <View className="flex-1">
-          <Texte poids="demi" className="text-lg">
+          <Texte poids="titre" className="text-lg leading-6" accessibilityRole="header">
             Ce qui part le plus vite
           </Texte>
           <Texte ton="discret" className="text-xs">
@@ -193,7 +219,7 @@ function CarteTendances({ tendances }: { tendances: Tendance[] }) {
       </View>
 
       {tendances.length === 0 ? (
-        <Texte ton="secondaire" className="text-sm">
+        <Texte ton="secondaire" className="text-sm leading-5">
           Touche « − » sur un aliment quand tu en prends : ses sorties apparaîtront ici pour repérer ce qu’il faut racheter le plus souvent.
         </Texte>
       ) : (
@@ -204,24 +230,27 @@ function CarteTendances({ tendances }: { tendances: Tendance[] }) {
               className="flex-row items-center gap-3"
               accessible
               accessibilityLabel={`${i + 1}. ${t.nom}, sorti ${t.sorties} fois`}>
-              <Text className="w-7 text-center text-xl" accessible={false}>
-                {emojiPourNom(t.nom)}
-              </Text>
-              <View className="flex-1 gap-1">
+              <View className="size-9 items-center justify-center rounded-[12px] bg-carte-enfoncee">
+                <Text className="text-lg" accessible={false}>
+                  {emojiPourNom(t.nom)}
+                </Text>
+              </View>
+              <View className="flex-1 gap-1.5">
                 <View className="flex-row items-baseline justify-between gap-2">
                   <Texte poids="moyen" className="shrink text-sm" numberOfLines={1}>
                     {t.nom}
                   </Texte>
-                  <Texte poids="demi" ton="secondaire" className="text-xs">
+                  <Texte poids="demi" ton={i === 0 ? 'courses' : 'secondaire'} className="text-xs" style={{ fontVariant: ['tabular-nums'] }}>
                     {t.sorties}×
                   </Texte>
                 </View>
+                {/* Barre : le premier en pleine couleur, les suivants plus discrets. */}
                 <View className="h-2 overflow-hidden rounded-full bg-carte-enfoncee">
                   <Degrade
-                    colors={i === 0 ? [c.orange, c.courses] : c.hero}
+                    colors={i === 0 ? [c.courses, c.coursesFort] : [c.courses, c.courses]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
-                    className="h-full rounded-full"
+                    className={`h-full rounded-full ${i === 0 ? '' : 'opacity-45'}`}
                     style={{ width: `${Math.max(8, (t.sorties / record) * 100)}%` }}
                   />
                 </View>
